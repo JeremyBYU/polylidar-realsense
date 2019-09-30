@@ -42,10 +42,11 @@ polygon:
         - 5
       - 2 # Sample every X cols
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extracton from point clouds.
+    alpha: 0.0 # must be set to 0.0 if using lmax
     lmax: 0.10 # maximum distance between points in plane for spatial connection
     zThresh: 0.01 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
     normThresh: 0.98 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
-    alpha: 0.0 # must be set to 0.0 if using lmax
+    normThreshMin: 0.5 # triangles must have a minimium amount of planarity. ignores zThresh
   ground_normal: # Settings used to estimate normal of ground plane in point cloud.
                  # This is used to rotate the point cloud such that ground normal aligns with the z-axis
     patch: # What portion of the depth image should be used to estimate normals. Will be downsampled.

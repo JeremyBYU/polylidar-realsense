@@ -142,7 +142,7 @@ def project(v):
     view_aspect = float(h)/w
 
     # ignore divide by zero for invalid depth
-    import pdb;pdb.set_trace()
+    # import pdb;pdb.set_trace()
     with np.errstate(divide='ignore', invalid='ignore'):
         proj = v[:, :-1] / v[:, -1, np.newaxis] * \
             (w*view_aspect, h) + (w/2.0, h/2.0)
