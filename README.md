@@ -1,8 +1,8 @@
 # Polylidar with Intel RealSense Example - Ground/Obstacle Detection
 
-This repository contains code and examples for integrating [Polylidar](https://github.com/JeremyBYU/polylidarv2) with an Intel RealSense camera.  The examples presented is for ground/obstacle detection with representation as polygons. 
+This repository contains code and examples for integrating [Polylidar](https://github.com/JeremyBYU/polylidarv2) with an Intel RealSense camera.  The example presented is for ground/obstacle detection with representation as polygons.
 
-![test](assets/media/obstacles_walk.gif)
+![Example ground and obstacle detection with Polylidar](assets/media/obstacles_walk.gif)
 
 The main components of the code are as follows:
 1. Using `pyrealsense2` to interface with the a D435 sensor.
@@ -28,24 +28,28 @@ Please see disclaimers below before using Polylidar with an Intel RealSense came
 
 ## Running
 
-The program which runs the capture is `capture.py` and be called as so `python grounddetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `grounddetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter:
+The demo code is in `capture.py` and be called as so `python grounddetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `grounddetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file.
 
 ```
-usage: capture.py [-h] [-c CONFIG]
+usage: capture.py [-h] [-c CONFIG] [-v VIDEO]
 
-Captures ground and obstacles using polylidar
+Captures ground plane and obstacles as polygons
 
 optional arguments:
   -h, --help            show this help message and exit
   -c CONFIG, --config CONFIG
                         Configuration file
+  -v VIDEO, --video VIDEO
+                        Video file path
 ```
 
 ## Disclaimers
 
-The Intel D435 is very noisy with very dense point clouds. The only way to make it usable for Polylidar (as it is currently implemented) is to use heavy filtering, including temporal filtering. Also the points are downsampled to:
+The Intel D435 is very noisy with dense point clouds. The only way to make it usable for Polylidar (as it is currently implemented) is to use heavy filtering, including temporal filtering. Also the points are downsampled to:
 
 1. Increase runtime speed. Less points the faster polylidar can extract polygons.
 2. Create more gaps between points, to increase triangle size. The true planarity (normal) of a triangle is more apparent the larger the triangle is in relation to sensor noise. 
 
 Imagine a ground triangle with 1cm edge lengths with a height noise of 1 cm. The noise dominates the triangle and makes the normal of the triangle not planar. Now image 5 cm edge lengths with same 1cm height noise. The noise makes less of a difference and it appears to be more flat.
+
+Note this repository uses a very simple method for determining the ground normal. It simply looks at the bottom portion of the depth image and does a best plane fit. In production, one should use RANSAC or other robust plane fitting algorithms for ground normal determination. Ground normal determination is not the focus of this repo.

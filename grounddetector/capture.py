@@ -172,15 +172,14 @@ def get_polygon(points, config, h, w, **kwargs):
         tuple -- polygons, rotated downsample points, and rotation matrix
     """
 
-    ground_config = config['polygon']['ground_normal']  # ground normal parametres
+    ground_config = config['polygon']['ground_normal']  # ground normal parameters
     points_config = config['polygon']['pointcloud']  # point cloud generation parameters
-    polylidar_kwargs = config['polygon']['polylidar']  # point cloud generation parameters
+    polylidar_kwargs = config['polygon']['polylidar']  # polylidar parameters
 
     # Get downsample ground patch
     ground_patch = [get_downsampled_patch(points, h, w, patch=ground_config['patch'], ds=ground_config['ds'])]
     normal = calculate_plane_normal(ground_patch)
     # Get downsampled point cloud
-    # get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'])
     points = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
     # Rotate cloud to align ground plane normal with Z axis
     points_rot, rm = align_vector_to_zaxis(points, normal)
@@ -226,7 +225,6 @@ def colorize_images_open_cv(color_image, depth_image, config):
 def capture(config, video=None):
     # Configure streams
     pipeline, pc, process_modules, filters, proj_mat = create_pipeline(config)
-    polygons = []
 
     if video:
         frame_width = config['depth']['width'] * 2
@@ -283,7 +281,7 @@ def capture(config, video=None):
 def main():
     parser = argparse.ArgumentParser(description="Captures ground plane and obstacles as polygons")
     parser.add_argument('-c', '--config', help="Configuration file", default=DEFAULT_CONFIG_FILE)
-    parser.add_argument('-v', '--video', help="Video file", default=None)
+    parser.add_argument('-v', '--video', help="Video file save path", default=None)
     args = parser.parse_args()
     with open(args.config) as file:
         try:

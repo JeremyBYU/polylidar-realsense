@@ -53,7 +53,7 @@ polygon:
     ds: # How should we downsample from the patch. Note we will perform SVD on this patch
       - 10 # Sample every Y rows
       - 10 # Sample every X cols
-    buffer: 10 # Take average of the last $(buffer) normals calculated
+    buffer: 10 # Take average of the last $(buffer) normals calculated. Not implemented (WIP).
   postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
     filter: # obstacles must have these characteristics
       hole_area:
