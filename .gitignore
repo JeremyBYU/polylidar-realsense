@@ -1,8 +1,6 @@
 *.txt
 *.las
 *.avi
-assets/videos
-assets/pics
 .vscode
 # Byte-compiled / optimized / DLL files
 __pycache__/
