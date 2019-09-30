@@ -28,7 +28,7 @@ Please see disclaimers below before using Polylidar with an Intel RealSense came
 
 ## Running
 
-The demo code is in `capture.py` and be called as so `python grounddetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `grounddetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file.
+The demo code is in `capture.py` and be called as so `python grounddetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `grounddetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file. If the camera will be moving you might have better luck with `moving.yaml`; it changes the temporal filter from 0.2 to 0.5 and uses a different advanced settings JSON file.
 
 ```
 usage: capture.py [-h] [-c CONFIG] [-v VIDEO]
