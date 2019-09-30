@@ -1,0 +1,67 @@
+---
+name: Default Settings for D435. Pointed near ground (< 2 meters max distance)
+advanced: # JSON file path holding advanced settings, TODO Implement
+show_images: true
+show_polygon: true
+color: # RGB Camera Settings
+  width: 640
+  height: 480
+  framerate: 30
+depth: # Detph Camera Settings
+  width: 640
+  height: 480
+  framerate: 30
+filters: # Any realsense filters you wish to apply
+  decimation:
+    active: true
+    magnitude: 2 # can be 2, 4, 8
+  temporal:
+    active: true
+    smooth_alpha: 0.4 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
+    smooth_delta: 20 # the filter threshold for edge classification and preserving with default value of 20 depth increments
+    persistence_control: 2 # 0 = disabled , 1 = Valid in 8/8, 2 = Valid in 2/last 3
+  spatial:
+    active: true
+    smooth_alpha: 0.5 # The weight of the current pixel for smoothing is bounded within [25..100]%
+    smooth_delta: 20 # The depth gradient below which the smoothing will occur as number of depth levels
+    magnitude: 2 # Number of iteration for filter
+    hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
+polygon:
+  frameskip: # criterions to skip polygon generation given input data
+    depth_min_valid: 0.5 # mininum percentage needed from depth image pixels with valid data
+  pointcloud: # Settings for point cloud generation from depth map image
+    patch: # What portion of the depth image should be used to generate the point cloud
+      - 0.25 # Starting percentage down the y-axis
+      - 1.0  # Ending percentage down the y-axis
+      - 0.0 # Starting pecentage on the x-axis
+      - 1.0  # Ending percentage on the x-axis
+    ds: # How should we downsample from the patch
+      - 3 # Sample every Y rows
+      - 2 # Sample every X cols
+  polylidar: # Parameters we send to polylidar. Determine plane and polygon extracton from point clouds.
+    lmax: 0.05 # maximum distance between points in plane for spatial connection
+    zThresh: 0.004 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
+    normThresh: 0.98 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
+    alpha: 0.0 # must be set to 0.0 if using lmax
+  ground_normal: # Settings used to estimate normal of ground plane in point cloud.
+                 # This is used to rotate the point cloud such that ground normal aligns with the z-axis
+    patch: # What portion of the depth image should be used to estimate normals. Will be downsampled.
+      - 0.75 # Starting percentage down the y-axis
+      - 1.0  # Ending percentage down the y-axis
+      - 0.10 # Starting pecentage right of the x-axis
+      - 0.9  # Ending percentage right of the x-axis
+    ds: # How should we downsample from the patch. Note we will perform SVD on this patch
+      - 10 # Sample every Y rows
+      - 10 # Sample every X cols
+    buffer: 10 # Take average of the last $(buffer) normals calculated
+  postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
+    filter: # obstacles must have these characteristics
+      hole_area:
+        min: 75   # cm^2
+        max: 7850 # cm^2
+      hole_vertices:
+        min: 10
+      plane_area:
+        min: 5000 # cm^2
+    buffer: 0.1 # cm, rounded edge buffer
+    simplify: 0.5  # cm, simplify edges 
