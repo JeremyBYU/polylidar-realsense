@@ -267,7 +267,7 @@ def capture(config, video=None):
                         cv2.imwrite(path.join(PICS_DIR, "{}_color.jpg".format(uid)), color_image_cv)
                         cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(uid)), images)
 
-                logging.debug("Get Frames: %.2f; Check Valid Frame: %.2f; Polygon Extraction: %.2f, Polygon Filtering: %.2f, Visualization: %.2f",
+                logging.info("Get Frames: %.2f; Check Valid Frame: %.2f; Polygon Extraction: %.2f, Polygon Filtering: %.2f, Visualization: %.2f",
                             (t0 - t00) * 1000, (t1-t0)*1000, (t2-t1)*1000, (t3-t2)*1000, (t4-t3)*1000 )
             except Exception as e:
                 logging.exception("Error!")
