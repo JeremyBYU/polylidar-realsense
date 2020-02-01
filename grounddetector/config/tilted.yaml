@@ -17,13 +17,13 @@ filters: # Any realsense filters you wish to apply
     magnitude: 2 # can be 2, 4, 8
   temporal:
     active: true
-    smooth_alpha: 0.2 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
-    smooth_delta: 20.0 # the filter threshold for edge classification and preserving with default value of 20 depth increments
+    smooth_alpha: 0.6 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
+    smooth_delta: 60.0 # the filter threshold for edge classification and preserving with default value of 20 depth increments
     persistence_control: 2 # 0 = disabled , 1 = Valid in 8/8, 2 = Valid in 2/last 3
   spatial:
     active: true
     smooth_alpha: 0.5 # The weight of the current pixel for smoothing is bounded within [25..100]%
-    smooth_delta: 28 # The depth gradient below which the smoothing will occur as number of depth levels
+    smooth_delta: 20.0 # The depth gradient below which the smoothing will occur as number of depth levels
     magnitude: 2 # Number of iteration for filter
     hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
 polygon:
@@ -44,7 +44,7 @@ polygon:
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extracton from point clouds.
     alpha: 0.0 # must be set to 0.0 if using lmax
     lmax: 0.10 # maximum distance between points in plane for spatial connection
-    zThresh: 0.01 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
+    zThresh: 0.0051 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
     normThresh: 0.98 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
     normThreshMin: 0.5 # triangles must have a minimium amount of planarity. ignores zThresh
   ground_normal: # Settings used to estimate normal of ground plane in point cloud.
@@ -67,5 +67,5 @@ polygon:
         min: 10
       plane_area:
         min: 5000 # cm^2
-    buffer: 0.1 # cm, rounded edge buffer
-    simplify: 0.5  # cm, simplify edges 
+    buffer: 0.5 # cm, rounded edge buffer
+    simplify: 1.0  # cm, simplify edges 
