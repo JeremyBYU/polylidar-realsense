@@ -1,6 +1,6 @@
 ---
 name: Default Settings for D435. Tilted near ground (< 2 meters max distance)
-advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
+advanced: "grounddetector/config/json/medium_density.json" # JSON file path holding advanced settings
 show_images: true
 show_polygon: true
 color: # RGB Camera Settings
@@ -36,17 +36,19 @@ polygon:
       - 0.0 # Starting pecentage on the x-axis
       - 1.0  # Ending percentage on the x-axis
     ds: # How should we downsample from the patch
-      - # Sample every Y rows
-        - 3
-        - 4
-        - 5
+      # - # Sample every Y rows
+      #   - 3
+      #   - 4
+      #   - 5
+      - 3
       - 2 # Sample every X cols
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extracton from point clouds.
     alpha: 0.0 # must be set to 0.0 if using lmax
-    lmax: 0.10 # maximum distance between points in plane for spatial connection
+    lmax: 0.05 # maximum distance between points in plane for spatial connection
     zThresh: 0.02 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
     normThresh: 0.98 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
-    normThreshMin: 0.8 # triangles must have a minimium amount of planarity. ignores zThresh
+    normThreshMin: 0.92 # triangles must have a minimium amount of planarity. ignores zThresh
+    minHoleVertices : 8 # mininum number of vertices in a hole to return
   ground_normal: # Settings used to estimate normal of ground plane in point cloud.
                  # This is used to rotate the point cloud such that ground normal aligns with the z-axis
     patch: # What portion of the depth image should be used to estimate normals. Will be downsampled.
@@ -61,13 +63,13 @@ polygon:
   postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
     filter: # obstacles must have these characteristics
       hole_area:
-        min: 0.0075   # m^2
+        min: 0.05   # m^2
         max: 0.785 # m^2
       hole_vertices:
-        min: 10
+        min: 6
       plane_area:
         min: .5 # m^2
     # These parameters correspond to Shapely polygon geometry operations
-    positive_buffer: 0.01 # m, Positively expand polygon.  Fills in small holes
+    positive_buffer: 0.005 # m, Positively expand polygon.  Fills in small holes
     buffer: 0.05 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
-    simplify: 0.03  # m, simplify edges of polygon
+    simplify: 0.02  # m, simplify edges of polygon

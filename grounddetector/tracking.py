@@ -15,7 +15,7 @@ import cv2
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 # from scipy.stats import describe
-# import open3d as o3d
+import open3d as o3d
 
 from polylidar import extractPolygons
 from grounddetector.helper import (align_vector_to_zaxis, get_downsampled_patch, calculate_plane_normal,
@@ -265,6 +265,9 @@ def get_polygon(points, config, h, w, rm=None, **kwargs):
         points_rot = np.ascontiguousarray(points_rot)
     else:
         points_rot = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
+        # print(points_rot.shape)
+        # points_rot = downsample_pc(points_rot)
+        # print(points_rot.shape)
         points_rot = np.ascontiguousarray(rotate_points(points_rot, rm))
 
     polygons = extractPolygons(points_rot, **polylidar_kwargs)
@@ -291,6 +294,12 @@ def valid_frames(color_image, depth_image, depth_min_valid=0.5):
 
     pass_all = pass_depth  # maybe others to come
     return pass_all
+
+def downsample_pc(pc, voxel_size=0.01):
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(pc)
+    pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
+    return np.asarray(pcd.points)
 
 
 def colorize_images_open_cv(color_image, depth_image, config):
@@ -350,6 +359,13 @@ def capture(config, video=None):
                         logging.info("Saving Picture: {}".format(uid))
                         cv2.imwrite(path.join(PICS_DIR, "{}_color.jpg".format(uid)), color_image_cv)
                         cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(uid)), images)
+                    if res == ord('o'):
+                        pcd = o3d.geometry.PointCloud()
+                        pcd.points = o3d.utility.Vector3dVector(points_rot)
+                        axis_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
+                        axis_frame = axis_frame.translate([0,0,-0.7])
+                        o3d.visualization.draw_geometries([pcd, axis_frame])
+                        
 
                 logging.info("Get Frames: %.2f; Check Valid Frame: %.2f; Polygon Extraction: %.2f, Polygon Filtering: %.2f, Visualization: %.2f",
                             (t0 - t00) * 1000, (t1-t0)*1000, (t2-t1)*1000, (t3-t2)*1000, (t4-t3)*1000 )
