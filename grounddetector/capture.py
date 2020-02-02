@@ -119,7 +119,7 @@ def get_frames(pipeline, pc, process_modules, filters, config):
     Returns:
         (rgb_image, depth_image, ndarray, meta) -- RGB Image, Depth Image (colorized), numpy points cloud, meta information
     """
-    success, frames = pipeline.try_wait_for_frames(timeout_ms=0)
+    success, frames = pipeline.try_wait_for_frames(timeout_ms=5)
     if not success:
         return None, None, None, None
     # Get all the standard process modules
@@ -225,6 +225,7 @@ def colorize_images_open_cv(color_image, depth_image, config):
 def capture(config, video=None):
     # Configure streams
     pipeline, pc, process_modules, filters, proj_mat = create_pipeline(config)
+    logging.info("Pipeline Created")
 
     if video:
         frame_width = config['depth']['width'] * 2
