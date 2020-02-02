@@ -21,7 +21,7 @@ from polylidar import extractPolygons
 from grounddetector.helper import (align_vector_to_zaxis, get_downsampled_patch, calculate_plane_normal,
                                     filter_zero, plot_polygons, filter_planes_and_holes, plot_planes_and_obstacles,
                                     create_projection_matrix, get_intrinsics, get_downsampled_patch_advanced,
-                                    load_setting_file, rotate_points)
+                                    load_setting_file, rotate_points, filter_planes_and_holes2)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -329,7 +329,7 @@ def capture(config, video=None):
                     r_matrix = t265_frame_to_standard(r_matrix)
                     polygons, points_rot, rot_mat = get_polygon(points, config, rm=r_matrix, **meta)
                     t2 = time.time()
-                    planes, obstacles = filter_planes_and_holes(polygons, points_rot, config)
+                    planes, obstacles = filter_planes_and_holes2(polygons, points_rot, config['polygon']['postprocess'])
                     t3 = time.time()
                     # Plot polygon in rgb frame
                     plot_planes_and_obstacles(planes, obstacles, proj_mat, rot_mat, color_image, config)

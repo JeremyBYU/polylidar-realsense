@@ -44,9 +44,9 @@ polygon:
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extracton from point clouds.
     alpha: 0.0 # must be set to 0.0 if using lmax
     lmax: 0.10 # maximum distance between points in plane for spatial connection
-    zThresh: 0.03 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
+    zThresh: 0.02 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
     normThresh: 0.98 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
-    normThreshMin: 0.5 # triangles must have a minimium amount of planarity. ignores zThresh
+    normThreshMin: 0.8 # triangles must have a minimium amount of planarity. ignores zThresh
   ground_normal: # Settings used to estimate normal of ground plane in point cloud.
                  # This is used to rotate the point cloud such that ground normal aligns with the z-axis
     patch: # What portion of the depth image should be used to estimate normals. Will be downsampled.
@@ -61,11 +61,13 @@ polygon:
   postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
     filter: # obstacles must have these characteristics
       hole_area:
-        min: 75   # cm^2
-        max: 7850 # cm^2
+        min: 0.0075   # m^2
+        max: 0.785 # m^2
       hole_vertices:
         min: 10
       plane_area:
-        min: 5000 # cm^2
-    buffer: 0.5 # cm, rounded edge buffer
-    simplify: 1.0  # cm, simplify edges 
+        min: .5 # m^2
+    # These parameters correspond to Shapely polygon geometry operations
+    positive_buffer: 0.01 # m, Positively expand polygon.  Fills in small holes
+    buffer: 0.05 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
+    simplify: 0.03  # m, simplify edges of polygon
