@@ -5,6 +5,7 @@ from os import path
 import time
 import uuid
 import traceback
+import bisect
 
 
 import numpy as np
@@ -12,12 +13,15 @@ import yaml
 import pyrealsense2 as rs
 import cv2
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation as R
+# from scipy.stats import describe
+# import open3d as o3d
 
 from polylidar import extractPolygons
 from grounddetector.helper import (align_vector_to_zaxis, get_downsampled_patch, calculate_plane_normal,
                                     filter_zero, plot_polygons, filter_planes_and_holes, plot_planes_and_obstacles,
                                     create_projection_matrix, get_intrinsics, get_downsampled_patch_advanced,
-                                    load_setting_file)
+                                    load_setting_file, rotate_points)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,8 +41,15 @@ H_t265_d400 = np.array([
     [0, 0, -1.0, 0],
     [0, 0, 0, 1]])
 
-T265_TRANSLATION = None
-T265_ROTATION = None
+H_Standard_t265 = np.array([
+    [1, 0, 0, 0],
+    [0, 0, -1, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 1]])
+
+T265_ROTATION = []
+T265_TIMES = []
+MAX_POSES = 100
 
 def callback_pose(frame):
     global T265_TRANSLATION, T265_ROTATION
@@ -49,10 +60,29 @@ def callback_pose(frame):
         data = pose.get_pose_data()
         t = data.translation
         r = data.rotation
-        T265_ROTATION = [r.x, r.y, r.z, r.w]
-        T265_TRANSLATION = [t.x, t.y, t.z]
+        T265_ROTATION.append([r.x, r.y, r.z, r.w])
+        T265_TIMES.append(int(ts))
+        if len(T265_TIMES) >= MAX_POSES:
+            T265_ROTATION.pop(0)
+            T265_TIMES.pop(0)
     except Exception:
         logging.exception("Error in callback for pose")
+
+def get_pose_index(ts_):
+    ts = int(ts_)
+    idx = bisect.bisect_left(T265_TIMES, ts, lo=0)
+    return min(idx, len(T265_TIMES) - 1)
+
+def get_pose_matrix(ts_):
+    logging.debug("Get Pose at %r", int(ts_))
+    idx = get_pose_index(ts_)
+    quat  = T265_ROTATION[idx]
+    ts = T265_TIMES[idx]
+
+    H_t265_W = R.from_quat(quat).as_matrix()
+    extrinsic = H_t265_W @ H_t265_d400[:3,:3]
+    logging.debug("Frame TimeStamp: %r; Pose TimeStamp %r", int(ts_), ts)
+    return extrinsic
 
 def create_pipeline(config):
     """Sets up the pipeline to extract depth and rgb frames
@@ -194,16 +224,20 @@ def get_frames(pipeline, pc, process_modules, filters, config):
     color_image = np.asanyarray(color_frame.get_data())
     depth_image = np.asanyarray(depth_frame.get_data())
 
+    depth_ts = depth_frame.get_timestamp()
+
     # Create point cloud
     points = pc.calculate(depth_frame)
     # extract ONLY 3D points from point cloud (pc) data structure; in camera frame (+Z is forward)
     points = np.asanyarray(points.get_vertices(2))
     # np.savetxt("allpoints_cameraframe.txt", points)
 
-    return color_image, depth_image, points, dict(h=h, w=w)
+    return color_image, depth_image, points, dict(h=h, w=w, ts=depth_ts)
 
+def t265_frame_to_standard(rm):
+    return H_Standard_t265[:3,:3] @ rm
 
-def get_polygon(points, config, h, w, **kwargs):
+def get_polygon(points, config, h, w, rm=None, **kwargs):
     """Extract polygons from point cloud
     
     Arguments:
@@ -215,19 +249,23 @@ def get_polygon(points, config, h, w, **kwargs):
     Returns:
         tuple -- polygons, rotated downsample points, and rotation matrix
     """
-
-    ground_config = config['polygon']['ground_normal']  # ground normal parameters
-    points_config = config['polygon']['pointcloud']  # point cloud generation parameters
     polylidar_kwargs = config['polygon']['polylidar']  # polylidar parameters
+    points_config = config['polygon']['pointcloud']  # point cloud generation parameters
 
-    # Get downsample ground patch
-    ground_patch = [get_downsampled_patch(points, h, w, patch=ground_config['patch'], ds=ground_config['ds'])]
-    normal = calculate_plane_normal(ground_patch)
-    # Get downsampled point cloud
-    points = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
-    # Rotate cloud to align ground plane normal with Z axis
-    points_rot, rm = align_vector_to_zaxis(points, normal)
-    points_rot = np.ascontiguousarray(points_rot)
+    if rm is None:
+        ground_config = config['polygon']['ground_normal']  # ground normal parameters
+
+        # Get downsample ground patch
+        ground_patch = [get_downsampled_patch(points, h, w, patch=ground_config['patch'], ds=ground_config['ds'])]
+        normal = calculate_plane_normal(ground_patch)
+        # Get downsampled point cloud
+        points = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
+        # Rotate cloud to align ground plane normal with Z axis
+        points_rot, rm = align_vector_to_zaxis(points, normal)
+        points_rot = np.ascontiguousarray(points_rot)
+    else:
+        points_rot = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
+        points_rot = np.ascontiguousarray(rotate_points(points_rot, rm))
 
     polygons = extractPolygons(points_rot, **polylidar_kwargs)
     return polygons, points_rot, rm
@@ -266,7 +304,6 @@ def colorize_images_open_cv(color_image, depth_image, config):
     return color_image_cv, depth_image_cv
 
 
-
 def capture(config, video=None):
     # Configure streams
     pipeline, pc, process_modules, filters, proj_mat, sensor_t265 = create_pipeline(config)
@@ -288,7 +325,9 @@ def capture(config, video=None):
 
             try:
                 if config['show_polygon']:
-                    polygons, points_rot, rot_mat = get_polygon(points, config, **meta)
+                    r_matrix = get_pose_matrix(meta['ts'])
+                    r_matrix = t265_frame_to_standard(r_matrix)
+                    polygons, points_rot, rot_mat = get_polygon(points, config, rm=r_matrix, **meta)
                     t2 = time.time()
                     planes, obstacles = filter_planes_and_holes(polygons, points_rot, config)
                     t3 = time.time()
@@ -324,7 +363,7 @@ def capture(config, video=None):
     cv2.destroyAllWindows() 
 
 def main():
-    parser = argparse.ArgumentParser(description="Captures ground plane and obstacles as polygons")
+    parser = argparse.ArgumentParser(description="Captures ground plane and obstacles as polygons. Needs D4XX and T265!")
     parser.add_argument('-c', '--config', help="Configuration file", default=DEFAULT_CONFIG_FILE)
     parser.add_argument('-v', '--video', help="Video file save path", default=None)
     args = parser.parse_args()
