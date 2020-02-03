@@ -1,6 +1,6 @@
 ---
 name: Default Settings for D435. Tilted near ground (< 2 meters max distance)
-advanced: "grounddetector/config/json/medium_density.json" # JSON file path holding advanced settings
+advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
 show_images: true
 show_polygon: true
 color: # RGB Camera Settings
@@ -41,14 +41,14 @@ polygon:
       #   - 4
       #   - 5
       - 3
-      - 2 # Sample every X cols
+      - 3 # Sample every X cols
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extracton from point clouds.
     alpha: 0.0 # must be set to 0.0 if using lmax
     lmax: 0.05 # maximum distance between points in plane for spatial connection
     zThresh: 0.02 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
-    normThresh: 0.98 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
-    normThreshMin: 0.92 # triangles must have a minimium amount of planarity. ignores zThresh
-    minHoleVertices : 8 # mininum number of vertices in a hole to return
+    normThresh: 0.99 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
+    normThreshMin: 0.96 # triangles must have a minimium amount of planarity. ignores zThresh
+    minHoleVertices : 6 # mininum number of vertices in a hole to return
   ground_normal: # Settings used to estimate normal of ground plane in point cloud.
                  # This is used to rotate the point cloud such that ground normal aligns with the z-axis
     patch: # What portion of the depth image should be used to estimate normals. Will be downsampled.
@@ -71,5 +71,5 @@ polygon:
         min: .5 # m^2
     # These parameters correspond to Shapely polygon geometry operations
     positive_buffer: 0.005 # m, Positively expand polygon.  Fills in small holes
-    buffer: 0.05 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
+    buffer: 0.03 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
     simplify: 0.02  # m, simplify edges of polygon
