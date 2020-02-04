@@ -5,7 +5,7 @@ setup(
     packages=['grounddetector'],
     scripts=[],
 
-    install_requires=['numpy', 'pyrealsense2', 'pyyaml'],
+    install_requires=['numpy', 'pyrealsense2', 'pyyaml', 'scipy>=1.4.0'],
 
     # metadata to display on PyPI
     author="Jeremy Castagno",

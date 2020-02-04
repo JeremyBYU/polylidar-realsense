@@ -1,10 +1,11 @@
 # Polylidar with Intel RealSense Example - Ground/Obstacle Detection
 
-This repository contains code and examples for integrating [Polylidar](https://github.com/JeremyBYU/polylidarv2) with an Intel RealSense camera.  The example presented is for ground/obstacle detection with representation as polygons. To learn more about Polylidar and its use cases for concave polygons extraction see it's [repository](https://github.com/JeremyBYU/polylidarv2).
+This repository contains code and examples for integrating [Polylidar](https://github.com/JeremyBYU/polylidarv2) with an Intel RealSense camera.  The example presented is for ground/obstacle detection with representation as polygons. To learn more about Polylidar and its use cases for concave polygons extraction see it's [repository](https://github.com/JeremyBYU/polylidar).
 
-![Example ground and obstacle detection with Polylidar](assets/media/obstacles_walk.gif)
+![Example ground and obstacle detection with Polylidar](assets/media/obstacles_walk_ver2.gif)
 
 The main components of the code are as follows:
+
 1. Using `pyrealsense2` to interface with the a D435 sensor.
 2. Apply filtering to generated depth images (spatial,temporal, etc.).  
 3. Generate a point cloud from filtered depth image.
@@ -12,7 +13,6 @@ The main components of the code are as follows:
 5. Use `polylidar` to extract flat surfaces and obstacles as polygons
 6. Perform polygon filtering and buffering.
 7. Project polygons onto image for display and verification
-
 
 Please see disclaimers below before using Polylidar with an Intel RealSense camera for your application.
 
@@ -25,12 +25,11 @@ Please see disclaimers below before using Polylidar with an Intel RealSense came
 5. `cd thirdparty/polylidar && pip install -e . && cd ../..` - Install polylidar manually because it is not on PyPi.
 6. `pip install -e .` - Install any dependencies for this repository (groundetector).
 
-
 ## Running
 
-The demo code is in `capture.py` and be called as so `python grounddetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `grounddetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file. If the camera will be moving you might have better luck with `moving.yaml`; it changes the temporal filter from 0.2 to 0.5 and uses a different advanced settings JSON file.
+The demo code is in `capture.py` and be called as so `python grounddetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `grounddetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file. 
 
-```
+```txt
 usage: capture.py [-h] [-c CONFIG] [-v VIDEO]
 
 Captures ground plane and obstacles as polygons
@@ -43,12 +42,16 @@ optional arguments:
                         Video file path
 ```
 
+### T265
+
+If you have a T265 that is rigidly mounted with your D4XX, we can skip the floor normal calculation and just rotate the point cloud into the world frame using T265 Pose data. Use the script `python grounddetector/tracking.py` for this work.
+
 ## Disclaimers
 
 The Intel D435 is very noisy with dense point clouds. The only way to make it usable for Polylidar (as it is currently implemented) is to use heavy filtering, including temporal filtering. Also the points are downsampled in order to:
 
 1. Increase runtime speed. Less points = faster polylidar performance.
-2. Create more gaps between points which increases triangle average size. The true planarity (normal) of a triangle is more apparent the larger the triangle is in relation to sensor noise. 
+2. Create more gaps between points which increases triangle average size. The true planarity (normal) of a triangle is more apparent the larger the triangle is in relation to sensor noise.
 
 Imagine a ground triangle with 1cm edge lengths with a height noise of 1 cm. The noise dominates the triangle and makes the normal of the triangle not planar. Now image 5 cm edge lengths with same 1cm height noise. The noise makes less of a difference and it appears to be more flat.
 
