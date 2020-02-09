@@ -3,6 +3,7 @@ name: Default Settings for D435. Tilted near ground (< 2 meters max distance)
 advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
 show_images: true
 show_polygon: true
+mesh_creation: 'uniform' # 'delaunay' or 'uniform'
 color: # RGB Camera Settings
   width: 424
   height: 240
@@ -28,33 +29,30 @@ filters: # Any realsense filters you wish to apply
     hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
 polygon:
   frameskip: # criterions to skip polygon generation given input data
-    depth_min_valid: 0.5 # mininum percentage needed from depth image pixels with valid data
+    depth_min_valid: 0.5 # minimum percentage needed from depth image pixels with valid data
   pointcloud: # Settings for point cloud generation from depth map image
-    patch: # What portion of the depth image should be used to generate the point cloud
+    patch: # What portion of the depth image should be used to generate the point cloud, only used when mesh_creation=delaunay
       - 0.1 # Starting percentage down the y-axis
       - 1.0  # Ending percentage down the y-axis
-      - 0.0 # Starting pecentage on the x-axis
+      - 0.0 # Starting percentage on the x-axis
       - 1.0  # Ending percentage on the x-axis
     ds: # How should we downsample from the patch
-      # - # Sample every Y rows
-      #   - 3
-      #   - 4
-      #   - 5
-      - 3
+      - 3 # Sample every Y rows
       - 3 # Sample every X cols
-  polylidar: # Parameters we send to polylidar. Determine plane and polygon extracton from point clouds.
+  polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
     alpha: 0.0 # must be set to 0.0 if using lmax
     lmax: 0.05 # maximum distance between points in plane for spatial connection
     zThresh: 0.03 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
     normThresh: 0.99 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
-    normThreshMin: 0.96 # triangles must have a minimium amount of planarity. ignores zThresh
-    minHoleVertices : 6 # mininum number of vertices in a hole to return
+    normThreshMin: 0.96 # triangles must have a minimum amount of planarity. ignores zThresh
+    minHoleVertices : 6 # minimum number of vertices in a hole to return
+    minTriangles: 200 # minimum number of triangles needed to make a plane
   ground_normal: # Settings used to estimate normal of ground plane in point cloud.
                  # This is used to rotate the point cloud such that ground normal aligns with the z-axis
     patch: # What portion of the depth image should be used to estimate normals. Will be downsampled.
       - 0.75 # Starting percentage down the y-axis
       - 1.0  # Ending percentage down the y-axis
-      - 0.10 # Starting pecentage right of the x-axis
+      - 0.10 # Starting percentage right of the x-axis
       - 0.9  # Ending percentage right of the x-axis
     ds: # How should we downsample from the patch. Note we will perform SVD on this patch
       - 10 # Sample every Y rows
@@ -71,5 +69,5 @@ polygon:
         min: .5 # m^2
     # These parameters correspond to Shapely polygon geometry operations
     positive_buffer: 0.005 # m, Positively expand polygon.  Fills in small holes
-    buffer: 0.03 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
+    negative_buffer: 0.03 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
     simplify: 0.02  # m, simplify edges of polygon

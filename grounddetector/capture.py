@@ -4,6 +4,7 @@ import argparse
 from os import path
 import time
 import uuid
+import math
 
 
 import numpy as np
@@ -12,11 +13,12 @@ import pyrealsense2 as rs
 import cv2
 import matplotlib.pyplot as plt
 
-from polylidar import extractPolygons
+from polylidar import extractPolygons, extract_uniform_mesh_from_float_depth, extract_polygons_from_mesh
+from polylidarutil.plane_filtering import filter_planes_and_holes
 from grounddetector.helper import (align_vector_to_zaxis, get_downsampled_patch, calculate_plane_normal,
-                                    filter_zero, plot_polygons, filter_planes_and_holes, plot_planes_and_obstacles,
-                                    create_projection_matrix, get_intrinsics, get_downsampled_patch_advanced,
-                                    load_setting_file, filter_planes_and_holes2)
+                                   filter_zero, plot_planes_and_obstacles, create_projection_matrix,
+                                   get_intrinsics, get_downsampled_patch_advanced,
+                                   load_setting_file, rotate_points)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -142,50 +144,81 @@ def get_frames(pipeline, pc, process_modules, filters, config):
     # Disparity back to depth
     depth_frame = disparity_to_depth.process(depth_frame)
     # Grab new intrinsics (may be changed by decimation)
-    depth_intrinsics = rs.video_stream_profile(
-        depth_frame.profile).get_intrinsics()
+    depth_intrinsics = rs.video_stream_profile(depth_frame.profile).get_intrinsics()
     w, h = depth_intrinsics.width, depth_intrinsics.height
-
+    d_intrinsics_matrix = np.array([[depth_intrinsics.fx, 0, depth_intrinsics.ppx],
+                                    [0, depth_intrinsics.fy, depth_intrinsics.ppy],
+                                    [0, 0, 1]])
     # convert to numpy array
     color_image = np.asanyarray(color_frame.get_data())
     depth_image = np.asanyarray(depth_frame.get_data())
 
-    # Create point cloud
-    points = pc.calculate(depth_frame)
-    # extract ONLY 3D points from point cloud (pc) data structure; in camera frame (+Z is forward)
-    points = np.asanyarray(points.get_vertices(2))
-    # np.savetxt("allpoints_cameraframe.txt", points)
+    # use point clouds to calculate mesh
+    if config['mesh_creation'] == 'delaunay':
+        # Create point cloud
+        points = pc.calculate(depth_frame)
+        # extract ONLY 3D points from point cloud (pc) data structure; in camera frame (+Z is forward)
+        points = np.asanyarray(points.get_vertices(2))
+    else:
+        # use depth image to create uniform mesh grid
+        points = None
 
-    return color_image, depth_image, points, dict(h=h, w=w)
+    return color_image, depth_image, points, dict(h=h, w=w, intrinsics=d_intrinsics_matrix)
 
 
-def get_polygon(points, config, h, w, **kwargs):
+def get_downsampled_point_cloud(points, depth_image, config, h, w, intrinsics):
+    """Return downsampled Point Cloud """
+    points_config = config['polygon']['pointcloud']  # point cloud generation parameters
+    h_ = h
+    w_ = w
+    if config['mesh_creation'] == 'uniform':
+        # convert uint16 to float32 in meters. extract point cloud and triangular mesh
+        depth_image = np.divide(depth_image, 1000.0, dtype=np.float32)
+        stride = points_config['ds'][0]
+        points, triangles, halfedges = extract_uniform_mesh_from_float_depth(depth_image, intrinsics, stride=stride)
+        points, triangles, halfedges = np.asarray(points), np.asarray(triangles), np.asarray(halfedges)
+        points = points.reshape((int(points.shape[0] / 3), 3))
+
+        h_, w_ = math.ceil(h / stride), math.ceil(w / stride)
+        return points, triangles, halfedges, h_, w_
+    else:
+        points = get_downsampled_patch_advanced(points, h_, w_, patch=points_config['patch'], ds=points_config['ds'])
+        return points, None, None, h_, w_
+
+
+def get_polygon(points, depth_image, config, h, w, intrinsics, **kwargs):
     """Extract polygons from point cloud
-    
+
     Arguments:
         points {ndarray} -- NX3 numpy array
         config {dict} -- Configuration object
         h {int} -- height
         w {int} -- width
-    
+
     Returns:
         tuple -- polygons, rotated downsample points, and rotation matrix
     """
-
     ground_config = config['polygon']['ground_normal']  # ground normal parameters
-    points_config = config['polygon']['pointcloud']  # point cloud generation parameters
     polylidar_kwargs = config['polygon']['polylidar']  # polylidar parameters
 
+    points_ds, triangles, halfedges, h_, w_ = get_downsampled_point_cloud(points, depth_image, config, h, w, intrinsics)
+    # points is None if use has configured mesh_creation=uniform
+    if points is None:
+        points = points_ds
+
     # Get downsample ground patch
-    ground_patch = [get_downsampled_patch(points, h, w, patch=ground_config['patch'], ds=ground_config['ds'])]
+    ground_patch = [get_downsampled_patch(points, h_, w_, patch=ground_config['patch'], ds=ground_config['ds'])]
     normal = calculate_plane_normal(ground_patch)
-    # Get downsampled point cloud
-    points = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
-    # Rotate cloud to align ground plane normal with Z axis
-    points_rot, rm = align_vector_to_zaxis(points, normal)
+    # Rotate Points
+    points_rot, rm = align_vector_to_zaxis(points_ds, normal)
     points_rot = np.ascontiguousarray(points_rot)
 
-    polygons = extractPolygons(points_rot, **polylidar_kwargs)
+    if config['mesh_creation'] == 'uniform':
+        # extract polygons from provided mesh
+        polygons = extract_polygons_from_mesh(points_rot, triangles, halfedges, **polylidar_kwargs)
+    else:
+        # exracts polygon from point cloud.
+        polygons = extractPolygons(points_rot, **polylidar_kwargs)
     return polygons, points_rot, rm
 
 
@@ -216,7 +249,6 @@ def colorize_images_open_cv(color_image, depth_image, config):
 
     color_image_cv = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
     depth_image_cv = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.10), cv2.COLORMAP_HOT)
-
     depth_image_cv = cv2.resize(depth_image_cv, (config['color']['width'], config['color']['height']))
 
     return color_image_cv, depth_image_cv
@@ -230,7 +262,7 @@ def capture(config, video=None):
     if video:
         frame_width = config['depth']['width'] * 2
         frame_height = config['depth']['height']
-        out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M','J','P','G'), 20, (frame_width,frame_height))
+        out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 20, (frame_width, frame_height))
     try:
         while True:
             t00 = time.time()
@@ -244,9 +276,9 @@ def capture(config, video=None):
 
             try:
                 if config['show_polygon']:
-                    polygons, points_rot, rot_mat = get_polygon(points, config, **meta)
+                    polygons, points_rot, rot_mat = get_polygon(points, depth_image, config, **meta)
                     t2 = time.time()
-                    planes, obstacles = filter_planes_and_holes2(polygons, points_rot, config['polygon']['postprocess'])
+                    planes, obstacles = filter_planes_and_holes(polygons, points_rot, config['polygon']['postprocess'])
                     t3 = time.time()
                     # Plot polygon in rgb frame
                     plot_planes_and_obstacles(planes, obstacles, proj_mat, rot_mat, color_image, config)
@@ -269,7 +301,7 @@ def capture(config, video=None):
                         cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(uid)), images)
 
                 logging.info("Get Frames: %.2f; Check Valid Frame: %.2f; Polygon Extraction: %.2f, Polygon Filtering: %.2f, Visualization: %.2f",
-                            (t0 - t00) * 1000, (t1-t0)*1000, (t2-t1)*1000, (t3-t2)*1000, (t4-t3)*1000 )
+                             (t0 - t00) * 1000, (t1 - t0) * 1000, (t2 - t1) * 1000, (t3 - t2) * 1000, (t4 - t3) * 1000)
             except Exception as e:
                 logging.exception("Error!")
 
@@ -277,7 +309,8 @@ def capture(config, video=None):
         pipeline.stop()
     if video is not None:
         out_vid.release()
-    cv2.destroyAllWindows() 
+    cv2.destroyAllWindows()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Captures ground plane and obstacles as polygons")

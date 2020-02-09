@@ -6,6 +6,7 @@ import time
 import uuid
 import traceback
 import bisect
+import math
 
 
 import numpy as np
@@ -17,11 +18,12 @@ from scipy.spatial.transform import Rotation as R
 # from scipy.stats import describe
 import open3d as o3d
 
-from polylidar import extractPolygons
+from polylidar import extractPolygons, extract_uniform_mesh_from_float_depth, extract_polygons_from_mesh
+from polylidarutil.plane_filtering import filter_planes_and_holes
 from grounddetector.helper import (align_vector_to_zaxis, get_downsampled_patch, calculate_plane_normal,
-                                    filter_zero, plot_polygons, filter_planes_and_holes, plot_planes_and_obstacles,
-                                    create_projection_matrix, get_intrinsics, get_downsampled_patch_advanced,
-                                    load_setting_file, rotate_points, filter_planes_and_holes2)
+                                   filter_zero, plot_planes_and_obstacles, create_projection_matrix,
+                                   get_intrinsics, get_downsampled_patch_advanced,
+                                   load_setting_file, rotate_points)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,6 +53,7 @@ T265_ROTATION = []
 T265_TIMES = []
 MAX_POSES = 100
 
+
 def callback_pose(frame):
     global T265_TRANSLATION, T265_ROTATION
     try:
@@ -68,21 +71,24 @@ def callback_pose(frame):
     except Exception:
         logging.exception("Error in callback for pose")
 
+
 def get_pose_index(ts_):
     ts = int(ts_)
     idx = bisect.bisect_left(T265_TIMES, ts, lo=0)
     return min(idx, len(T265_TIMES) - 1)
 
+
 def get_pose_matrix(ts_):
     logging.debug("Get Pose at %r", int(ts_))
     idx = get_pose_index(ts_)
-    quat  = T265_ROTATION[idx]
+    quat = T265_ROTATION[idx]
     ts = T265_TIMES[idx]
 
     H_t265_W = R.from_quat(quat).as_matrix()
-    extrinsic = H_t265_W @ H_t265_d400[:3,:3]
+    extrinsic = H_t265_W @ H_t265_d400[:3, :3]
     logging.debug("Frame TimeStamp: %r; Pose TimeStamp %r", int(ts_), ts)
     return extrinsic
+
 
 def create_pipeline(config):
     """Sets up the pipeline to extract depth and rgb frames
@@ -106,7 +112,7 @@ def create_pipeline(config):
             dev_d400 = dev
         elif "Intel RealSense T265" in dev_name:
             dev_t265 = dev
-        
+
     if len(devices) != 2:
         logging.error("Need 2 connected Intel Realsense Devices!")
         sys.exit(1)
@@ -219,58 +225,93 @@ def get_frames(pipeline, pc, process_modules, filters, config):
     depth_intrinsics = rs.video_stream_profile(
         depth_frame.profile).get_intrinsics()
     w, h = depth_intrinsics.width, depth_intrinsics.height
+    d_intrinsics_matrix = np.array([[depth_intrinsics.fx, 0, depth_intrinsics.ppx],
+                                    [0, depth_intrinsics.fy, depth_intrinsics.ppy],
+                                    [0, 0, 1]])
 
     # convert to numpy array
     color_image = np.asanyarray(color_frame.get_data())
     depth_image = np.asanyarray(depth_frame.get_data())
-
     depth_ts = depth_frame.get_timestamp()
 
-    # Create point cloud
-    points = pc.calculate(depth_frame)
-    # extract ONLY 3D points from point cloud (pc) data structure; in camera frame (+Z is forward)
-    points = np.asanyarray(points.get_vertices(2))
-    # np.savetxt("allpoints_cameraframe.txt", points)
+    # use point clouds to calculate mesh
+    if config['mesh_creation'] == 'delaunay':
+        # Create point cloud
+        points = pc.calculate(depth_frame)
+        # extract ONLY 3D points from point cloud (pc) data structure; in camera frame (+Z is forward)
+        points = np.asanyarray(points.get_vertices(2))
+    else:
+        # use depth image to create uniform mesh grid
+        points = None
 
-    return color_image, depth_image, points, dict(h=h, w=w, ts=depth_ts)
+    return color_image, depth_image, points, dict(h=h, w=w, ts=depth_ts, intrinsics=d_intrinsics_matrix)
+
 
 def t265_frame_to_standard(rm):
-    return H_Standard_t265[:3,:3] @ rm
+    return H_Standard_t265[:3, :3] @ rm
 
-def get_polygon(points, config, h, w, rm=None, **kwargs):
+
+def get_downsampled_point_cloud(points, depth_image, config, h, w, intrinsics):
+    """Return downsampled Point Cloud """
+    points_config = config['polygon']['pointcloud']  # point cloud generation parameters
+    h_ = h
+    w_ = w
+    if config['mesh_creation'] == 'uniform':
+        # convert uint16 to float32 in meters. extract point cloud and triangular mesh
+        depth_image = np.divide(depth_image, 1000.0, dtype=np.float32)
+        stride = points_config['ds'][0]
+        points, triangles, halfedges = extract_uniform_mesh_from_float_depth(depth_image, intrinsics, stride=stride)
+        points, triangles, halfedges = np.asarray(points), np.asarray(triangles), np.asarray(halfedges)
+        points = points.reshape((int(points.shape[0] / 3), 3))
+
+        h_, w_ = math.ceil(h / stride), math.ceil(w / stride)
+        return points, triangles, halfedges, h_, w_
+    else:
+        points = get_downsampled_patch_advanced(points, h_, w_, patch=points_config['patch'], ds=points_config['ds'])
+        return points, None, None, h_, w_
+
+
+def get_polygon(points, depth_image, config, h, w, intrinsics, rm=None, **kwargs):
     """Extract polygons from point cloud
-    
+
     Arguments:
         points {ndarray} -- NX3 numpy array
         config {dict} -- Configuration object
         h {int} -- height
         w {int} -- width
-    
+
     Returns:
         tuple -- polygons, rotated downsample points, and rotation matrix
     """
     polylidar_kwargs = config['polygon']['polylidar']  # polylidar parameters
-    points_config = config['polygon']['pointcloud']  # point cloud generation parameters
 
+    t1 = time.perf_counter()
+    points_ds, triangles, halfedges, h_, w_ = get_downsampled_point_cloud(points, depth_image, config, h, w, intrinsics)
+    t2 = time.perf_counter()
+    if points is None:
+        points = points_ds
     if rm is None:
         ground_config = config['polygon']['ground_normal']  # ground normal parameters
-
         # Get downsample ground patch
-        ground_patch = [get_downsampled_patch(points, h, w, patch=ground_config['patch'], ds=ground_config['ds'])]
+        ground_patch = [get_downsampled_patch(points, h_, w_, patch=ground_config['patch'], ds=ground_config['ds'])]
         normal = calculate_plane_normal(ground_patch)
-        # Get downsampled point cloud
-        points = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
-        # Rotate cloud to align ground plane normal with Z axis
-        points_rot, rm = align_vector_to_zaxis(points, normal)
+        # Rotate Points
+        points_rot, rm = align_vector_to_zaxis(points_ds, normal)
         points_rot = np.ascontiguousarray(points_rot)
     else:
-        points_rot = get_downsampled_patch_advanced(points, h, w, patch=points_config['patch'], ds=points_config['ds'])
-        # print(points_rot.shape)
-        # points_rot = downsample_pc(points_rot)
-        # print(points_rot.shape)
-        points_rot = np.ascontiguousarray(rotate_points(points_rot, rm))
+        points_rot = np.ascontiguousarray(rotate_points(points_ds, rm))
 
-    polygons = extractPolygons(points_rot, **polylidar_kwargs)
+    t3 = time.perf_counter()
+    if config['mesh_creation'] == 'uniform':
+        # extract polygons from provided mesh
+        polygons = extract_polygons_from_mesh(points_rot, triangles, halfedges, **polylidar_kwargs)
+    else:
+        # exracts polygon from point cloud.
+        polygons = extractPolygons(points_rot, **polylidar_kwargs)
+    t4 = time.perf_counter()
+
+    # logging.info("Get DS Point Cloud and Mesh: %f; Extract Polygons %f", (t2-t1) * 1000, (t4-t3) * 1000)
+
     return polygons, points_rot, rm
 
 
@@ -294,6 +335,7 @@ def valid_frames(color_image, depth_image, depth_min_valid=0.5):
 
     pass_all = pass_depth  # maybe others to come
     return pass_all
+
 
 def downsample_pc(pc, voxel_size=0.01):
     pcd = o3d.geometry.PointCloud()
@@ -320,7 +362,7 @@ def capture(config, video=None):
     if video:
         frame_width = config['depth']['width'] * 2
         frame_height = config['depth']['height']
-        out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M','J','P','G'), 20, (frame_width,frame_height))
+        out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 20, (frame_width, frame_height))
     try:
         while True:
             t00 = time.time()
@@ -336,9 +378,9 @@ def capture(config, video=None):
                 if config['show_polygon']:
                     r_matrix = get_pose_matrix(meta['ts'])
                     r_matrix = t265_frame_to_standard(r_matrix)
-                    polygons, points_rot, rot_mat = get_polygon(points, config, rm=r_matrix, **meta)
+                    polygons, points_rot, rot_mat = get_polygon(points, depth_image, config, rm=r_matrix, **meta)
                     t2 = time.time()
-                    planes, obstacles = filter_planes_and_holes2(polygons, points_rot, config['polygon']['postprocess'])
+                    planes, obstacles = filter_planes_and_holes(polygons, points_rot, config['polygon']['postprocess'])
                     t3 = time.time()
                     # Plot polygon in rgb frame
                     plot_planes_and_obstacles(planes, obstacles, proj_mat, rot_mat, color_image, config)
@@ -363,12 +405,11 @@ def capture(config, video=None):
                         pcd = o3d.geometry.PointCloud()
                         pcd.points = o3d.utility.Vector3dVector(points_rot)
                         axis_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.1)
-                        axis_frame = axis_frame.translate([0,0,-0.7])
+                        axis_frame = axis_frame.translate([0, 0, -0.7])
                         o3d.visualization.draw_geometries([pcd, axis_frame])
-                        
 
                 logging.info("Get Frames: %.2f; Check Valid Frame: %.2f; Polygon Extraction: %.2f, Polygon Filtering: %.2f, Visualization: %.2f",
-                            (t0 - t00) * 1000, (t1-t0)*1000, (t2-t1)*1000, (t3-t2)*1000, (t4-t3)*1000 )
+                             (t0 - t00) * 1000, (t1 - t0) * 1000, (t2 - t1) * 1000, (t3 - t2) * 1000, (t4 - t3) * 1000)
             except Exception as e:
                 logging.exception("Error!")
 
@@ -376,10 +417,12 @@ def capture(config, video=None):
         pipeline.stop()
     if video is not None:
         out_vid.release()
-    cv2.destroyAllWindows() 
+    cv2.destroyAllWindows()
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Captures ground plane and obstacles as polygons. Needs D4XX and T265!")
+    parser = argparse.ArgumentParser(
+        description="Captures ground plane and obstacles as polygons. Needs D4XX and T265!")
     parser.add_argument('-c', '--config', help="Configuration file", default=DEFAULT_CONFIG_FILE)
     parser.add_argument('-v', '--video', help="Video file save path", default=None)
     args = parser.parse_args()
