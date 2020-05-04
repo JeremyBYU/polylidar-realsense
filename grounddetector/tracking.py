@@ -2,6 +2,7 @@ import logging
 import sys
 import argparse
 from os import path
+import json
 import time
 import uuid
 import traceback
@@ -14,6 +15,7 @@ import yaml
 import pyrealsense2 as rs
 import cv2
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
 from scipy.spatial.transform import Rotation as R
 # from scipy.stats import describe
 import open3d as o3d
@@ -295,24 +297,36 @@ def get_polygon(points, depth_image, config, h, w, intrinsics, rm=None, **kwargs
         # Get downsample ground patch
         ground_patch = [get_downsampled_patch(points, h_, w_, patch=ground_config['patch'], ds=ground_config['ds'])]
         normal = calculate_plane_normal(ground_patch)
+        if normal[2] < 0:
+            normal = np.negative(normal)
         # Rotate Points
         points_rot, rm = align_vector_to_zaxis(points_ds, normal)
         points_rot = np.ascontiguousarray(points_rot)
     else:
         points_rot = np.ascontiguousarray(rotate_points(points_ds, rm))
 
+
+    bottom_points = 1000
+    z_values = points_rot[:-bottom_points, 2]
+    height = np.median(z_values)
+    threshold = 0.025
+    mask = points_rot[:, 2] >  (height + threshold)
+    points_rot[mask, 2] = points_rot[mask, 2] + 0.2
+    point_rot_temp = np.ascontiguousarray(points_rot[~mask, :])    
+
     t3 = time.perf_counter()
+    polygons = None
     if config['mesh_creation'] == 'uniform':
         # extract polygons from provided mesh
+        pass
         polygons = extract_polygons_from_mesh(points_rot, triangles, halfedges, **polylidar_kwargs)
     else:
         # exracts polygon from point cloud.
-        polygons = extractPolygons(points_rot, **polylidar_kwargs)
+        polygons = extractPolygons(point_rot_temp, **polylidar_kwargs)
     t4 = time.perf_counter()
 
     # logging.info("Get DS Point Cloud and Mesh: %f; Extract Polygons %f", (t2-t1) * 1000, (t4-t3) * 1000)
-
-    return polygons, points_rot, rm
+    return polygons, point_rot_temp, points_rot, rm
 
 
 def valid_frames(color_image, depth_image, depth_min_valid=0.5):
@@ -344,13 +358,18 @@ def downsample_pc(pc, voxel_size=0.01):
     return np.asarray(pcd.points)
 
 
+def colorize_depth(depth_image, config, vmin=500, vmax=1500, bgr=True):
+    depth_image_cv = cv2.resize(depth_image, (config['color']['width'], config['color']['height']))
+    normalized_depth = Normalize(vmin=vmin, vmax=vmax, clip=True)(depth_image_cv)
+    depth_image_cv = (plt.cm.viridis(normalized_depth)[:,:, :3] * 255).astype(np.uint8)
+    if bgr:
+        depth_image_cv = cv2.cvtColor(depth_image_cv, cv2.COLOR_RGB2BGR)
+    return depth_image_cv
+
 def colorize_images_open_cv(color_image, depth_image, config):
     """Colorizes and resizes images"""
-
     color_image_cv = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
-    depth_image_cv = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.10), cv2.COLORMAP_HOT)
-
-    depth_image_cv = cv2.resize(depth_image_cv, (config['color']['width'], config['color']['height']))
+    depth_image_cv = colorize_depth(depth_image, config)
 
     return color_image_cv, depth_image_cv
 
@@ -374,11 +393,13 @@ def capture(config, video=None):
                 continue
             t1 = time.time()
 
+            backup_color = color_image.copy()
+
             try:
                 if config['show_polygon']:
                     r_matrix = get_pose_matrix(meta['ts'])
                     r_matrix = t265_frame_to_standard(r_matrix)
-                    polygons, points_rot, rot_mat = get_polygon(points, depth_image, config, rm=r_matrix, **meta)
+                    polygons, points_rot, points_rot_all, rot_mat = get_polygon(points, depth_image, config, rm=None, **meta)
                     t2 = time.time()
                     planes, obstacles = filter_planes_and_holes(polygons, points_rot, config['polygon']['postprocess'])
                     t3 = time.time()
@@ -400,7 +421,17 @@ def capture(config, video=None):
                         uid = uuid.uuid4()
                         logging.info("Saving Picture: {}".format(uid))
                         cv2.imwrite(path.join(PICS_DIR, "{}_color.jpg".format(uid)), color_image_cv)
+                        cv2.imwrite(path.join(PICS_DIR, "{}_color_nopoly.jpg".format(uid)), cv2.cvtColor(backup_color, cv2.COLOR_RGB2BGR))
+                        cv2.imwrite(path.join(PICS_DIR, "{}_depth.jpg".format(uid)), depth_image_cv)
                         cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(uid)), images)
+                        np.savetxt(path.join(PICS_DIR, "{}_points.txt".format(uid)), points_rot_all)
+                        np.savetxt(path.join(PICS_DIR, "{}_depth_raw.txt".format(uid)), depth_image)
+
+                        meta = dict(rm=r_matrix.tolist(), proj_mat=proj_mat.tolist(), w=config['color']['width'], h=config['color']['height'], rot_mat=rot_mat.tolist())
+                        with open(path.join(PICS_DIR, "{}_meta.json".format(uid)), 'w') as fp:
+                            json.dump(meta, fp, indent=4)
+
+
                     if res == ord('o'):
                         pcd = o3d.geometry.PointCloud()
                         pcd.points = o3d.utility.Vector3dVector(points_rot)
