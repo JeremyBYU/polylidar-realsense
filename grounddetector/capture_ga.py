@@ -5,6 +5,7 @@ from os import path
 import time
 import uuid
 import math
+import itertools
 
 
 import numpy as np
@@ -39,7 +40,81 @@ DEFAULT_CONFIG_FILE = path.join(CONFIG_DIR, "default.yaml")
 IDENTITY = np.identity(3)
 IDENTITY_MAT = MatrixDouble(IDENTITY)
 
-count = 0 
+
+axis = o3d.geometry.TriangleMesh.create_coordinate_frame()
+
+
+def vector_magnitude(vec):
+    """
+    Calculates a vector's magnitude.
+    Args:
+        - vec (): 
+    """
+    magnitude = np.sqrt(np.sum(vec**2))
+    return(magnitude)
+
+
+def align_vector_to_another(a=np.array([0, 0, 1]), b=np.array([1, 0, 0])):
+    """
+    Aligns vector a to vector b with axis angle rotation
+    """
+    if np.array_equal(a, b):
+        return None, None
+    axis_ = np.cross(a, b)
+    axis_ = axis_ / np.linalg.norm(axis_)
+    angle = np.arccos(np.dot(a, b))
+
+    return axis_, angle
+
+
+def create_arrow(scale=1, cylinder_radius=None, **kwargs):
+    """
+    Create an arrow in for Open3D
+    """
+    cone_height = scale * 0.2
+    cylinder_height = scale * 0.8
+    cone_radius = cylinder_radius if cylinder_radius else scale / 10
+    cylinder_radius = cylinder_radius if cylinder_radius else scale / 20
+    mesh_frame = o3d.geometry.TriangleMesh.create_arrow(cone_radius=cone_radius,
+                                                        cone_height=cone_height,
+                                                        cylinder_radius=cylinder_radius,
+                                                        cylinder_height=cylinder_height)
+    return(mesh_frame)
+
+
+def get_arrow(origin=[0, 0, 0], end=None, vec=None, **kwargs):
+    """
+    Creates an arrow from an origin point to an end point,
+    or create an arrow from a vector vec starting from origin.
+    Args:
+        - end (): End point. [x,y,z]
+        - vec (): Vector. [i,j,k]
+    """
+    # print(end)
+    scale = 10
+    beta = 0
+    gamma = 0
+    T = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+    T[:3, -1] = origin
+    if end is not None:
+        vec = np.array(end) - np.array(origin)
+    elif vec is not None:
+        vec = np.array(vec)
+    if end is not None or vec is not None:
+        scale = vector_magnitude(vec)
+        mesh = create_arrow(scale, **kwargs)
+        axis, angle = align_vector_to_another(b=vec / scale)
+        if axis is None:
+            axis_a = axis
+        else:
+            axis_a = axis * angle
+            rotation_3x3 = mesh.get_rotation_matrix_from_axis_angle(axis_a)
+    # mesh.transform(T)
+    if axis is not None:
+        mesh = mesh.rotate(rotation_3x3, center=False)
+    mesh.translate(origin)
+    return(mesh)
+
 
 def create_pipeline(config):
     """Sets up the pipeline to extract depth and rgb frames
@@ -166,8 +241,7 @@ def get_frames(pipeline, pc, process_modules, filters, config):
     return color_image, depth_image, dict(h=h, w=w, intrinsics=d_intrinsics_matrix)
 
 
-
-def get_polygon(depth_image:np.ndarray, config, ll_objects, h, w, intrinsics, **kwargs):
+def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, **kwargs):
     """Extract polygons from point cloud
 
     Arguments:
@@ -184,37 +258,39 @@ def get_polygon(depth_image:np.ndarray, config, ll_objects, h, w, intrinsics, **
     # 2. Create a smooth mesh from the organized point cloud (OrganizedPointFilters)
     #     1. You can skip smoothing if desired and only rely upon Intel Realsense SDK
     # 3. Estimate dominate plane normals in scene (FastGA)
-    # 4. Extract polygons from mesh using dominant plane normals (Polylidar3D) 
+    # 4. Extract polygons from mesh using dominant plane normals (Polylidar3D)
 
+    alg_timings = dict()
 
     # 1. Create OPC
     stride = config['mesh']['stride']  # point cloud generation parameters
     depth_image = np.divide(depth_image, 1000.0, dtype=np.float32)
-    points = extract_point_cloud_from_float_depth(MatrixFloat(depth_image), MatrixDouble(intrinsics), IDENTITY_MAT, stride=stride)
+    points = extract_point_cloud_from_float_depth(MatrixFloat(
+        depth_image), MatrixDouble(intrinsics), IDENTITY_MAT, stride=stride)
     new_shape = (int(depth_image.shape[0] / stride), int(depth_image.shape[1] / stride), 3)
-    opc = np.asarray(points).reshape(new_shape) # organized point cloud (will have NaNs!)
-    # print(opc.shape)
+    opc = np.asarray(points).reshape(new_shape)  # organized point cloud (will have NaNs!)
 
     # 2. Create Mesh and Smooth (all in one)
-    mesh, o3d_mesh, timings = create_meshes_cuda_with_o3d(opc, **config['mesh']['filter'])
+    # mesh, o3d_mesh, timings = create_meshes_cuda_with_o3d(opc, **config['mesh']['filter'])
+    mesh, timings = create_meshes_cuda(opc, **config['mesh']['filter'])
+    alg_timings.update(timings)
     # TODO add a commented line that only does mesh creation
 
     # 3. Estimate Dominate Plane Normals
     fga = config['fastga']
-    avg_peaks, _, _, _, timings = extract_all_dominant_plane_normals(mesh, ga_=ll_objects['ga'], ico_chart_=ll_objects['ico'],**fga)
-    print(avg_peaks)
+    avg_peaks, _, _, _, timings = extract_all_dominant_plane_normals(
+        mesh, ga_=ll_objects['ga'], ico_chart_=ll_objects['ico'], **fga)
+    alg_timings.update(timings)
+    # print(avg_peaks)
 
     # 4. Extract Polygons from mesh
-    planes, obstacles, timings = extract_planes_and_polygons_from_mesh(mesh, avg_peaks, filter_polygons=True, optimized=True)
-    
+    planes, obstacles, timings = extract_planes_and_polygons_from_mesh(mesh, avg_peaks, pl_=ll_objects['pl'],
+                                                                                       filter_polygons=True, optimized=True,
+                                                                                       postprocess=config['polygon']['postprocess'])
+    alg_timings.update(timings)
 
-    # global count
-    # if count > 120:
-    #     o3d.visualization.draw_geometries([o3d_mesh])
-    # count += 1
-
-    
-    return planes, obstacles, timings
+    return planes, obstacles, alg_timings
+    # return planes, obstacles, timings, mesh, o3d_mesh, o3d_mesh_painted, arrow_o3d, all_poly_lines
     # return polygons, points_rot, rm
 
 
@@ -279,6 +355,7 @@ def capture(config, video=None):
 
             try:
                 if config['show_polygon']:
+                    # planes, obstacles, timings, mesh, o3d_mesh, o3d_mesh_painted, arrow_o3d, all_poly_lines = get_polygon(depth_image, config, ll_objects, **meta)
                     planes, obstacles, timings = get_polygon(depth_image, config, ll_objects, **meta)
                     # continue
                     # t2 = time.time()
@@ -303,6 +380,17 @@ def capture(config, video=None):
                         logging.info("Saving Picture: {}".format(uid))
                         cv2.imwrite(path.join(PICS_DIR, "{}_color.jpg".format(uid)), color_image_cv)
                         cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(uid)), images)
+                    if res == ord('m'):
+                        plt.imshow(np.asarray(ll_objects['ico'].image))
+                        plt.show()
+                        all_lines = [line_mesh.cylinder_segments for line_mesh in all_poly_lines]
+                        flatten = itertools.chain.from_iterable
+                        all_lines = list(flatten(all_lines))
+
+                        arrow_o3d = arrow_o3d.translate([0, 0, 1.3])
+                        # import ipdb; ipdb.set_trace()
+
+                        o3d.visualization.draw_geometries([axis, o3d_mesh_painted, arrow_o3d, *all_lines])
 
                 # logging.info("Get Frames: %.2f; Check Valid Frame: %.2f; Polygon Extraction: %.2f, Polygon Filtering: %.2f, Visualization: %.2f",
                 #              (t0 - t00) * 1000, (t1 - t0) * 1000, (t2 - t1) * 1000, (t3 - t2) * 1000, (t4 - t3) * 1000)

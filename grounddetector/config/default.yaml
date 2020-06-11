@@ -3,7 +3,6 @@
   advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
   show_images: true
   show_polygon: true
-  mesh_creation: 'uniform' # 'delaunay' or 'uniform'
   color: # RGB Camera Settings
     width: 424
     height: 240
@@ -24,13 +23,13 @@
     spatial:
       active: true
       smooth_alpha: 0.35 # The weight of the current pixel for smoothing is bounded within [25..100]%
-      smooth_delta: 10.0 # The depth gradient below which the smoothing will occur as number of depth levels
+      smooth_delta: 8.0 # The depth gradient below which the smoothing will occur as number of depth levels
       magnitude: 3 # Number of iteration for filter
       hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
   mesh:
     stride: 2
     filter:
-      loops_laplacian: 1
+      loops_laplacian: 2
       _lambda: 1.0
       kernel_size: 3
       loops_bilateral: 2
@@ -38,22 +37,22 @@
       sigma_angle: 0.261
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
     alpha: 0.0 # must be set to 0.0 if using lmax
-    lmax: 0.05 # maximum distance between points in plane for spatial connection
-    z_thresh: 0.00 # enforce point to plane distance constraints during region growing.
+    lmax: 0.1 # maximum distance between points in plane for spatial connection
+    z_thresh: 0.08 # enforce point to plane distance constraints during region growing.
     norm_thresh: 0.96 # Not used, set to the same as norm_thresh_min. Will deprecate later.
-    norm_thresh_min: 0.96 # triangles must have a minimum amount of planarity.
+    norm_thresh_min: 0.95 # triangles must have a minimum amount of planarity.
     min_hole_vertices : 6 # minimum number of vertices in a hole to return
-    min_triangles: 200 # minimum number of triangles needed to make a plane
+    min_triangles: 80 # minimum number of triangles needed to make a plane
   fastga: # Parameters used for dominant plane normal estimation
-    level: 4 # refinement level of the gaussian accumulator
+    level: 3 # refinement level of the gaussian accumulator
     down_sample_fraction: 0.12 # only use X% of triangle normals from mesh for integration, lower the faster
     find_peaks_kwargs: # peak detection arguments
-      threshold_abs: 100 # [0-255], minimum value of normalized histogram of S2 to be a peak
+      threshold_abs: 50 # [0-255], minimum value of normalized histogram of S2 to be a peak
       min_distance: 1 # 1 = 3X3 kernel for peak detector. I recommend to not change
       exclude_border: false
       indices: false # must return mask
     cluster_kwargs: # Agglomerative hierarchal clustering
-      t: 0.10 # min distance in 3D space of peaks (surface normals on sphere) before merging 
+      t: 0.18 # min distance in 3D space of peaks (surface normals on sphere) before merging 
       criterion: 'distance'
     average_filter: # A merge group must have at least x% of value in all of histogram, this doesn't have much meaning and will probably be deprecated
       min_total_weight: 0.1
@@ -68,7 +67,7 @@
         hole_vertices:
           min: 6
         plane_area:
-          min: .5 # m^2
+          min: .05 # m^2
       # These parameters correspond to Shapely polygon geometry operations
       positive_buffer: 0.005 # m, Positively expand polygon.  Fills in small holes
       negative_buffer: 0.03 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
