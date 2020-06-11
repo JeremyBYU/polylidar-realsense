@@ -1,5 +1,5 @@
 ---
-  name: Default Settings for D435. Tilted near ground (< 2 meters max distance)
+  name: Default Settings for D435 extracting multiple surfaces using Polylidar3D
   advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
   show_images: true
   show_polygon: true
@@ -27,37 +27,39 @@
       smooth_delta: 10.0 # The depth gradient below which the smoothing will occur as number of depth levels
       magnitude: 3 # Number of iteration for filter
       hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
+  mesh:
+    stride: 2
+    filter:
+      loops_laplacian: 1
+      _lambda: 1.0
+      kernel_size: 3
+      loops_bilateral: 2
+      sigma_length: 0.1
+      sigma_angle: 0.261
+  polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
+    alpha: 0.0 # must be set to 0.0 if using lmax
+    lmax: 0.05 # maximum distance between points in plane for spatial connection
+    z_thresh: 0.00 # enforce point to plane distance constraints during region growing.
+    norm_thresh: 0.96 # Not used, set to the same as norm_thresh_min. Will deprecate later.
+    norm_thresh_min: 0.96 # triangles must have a minimum amount of planarity.
+    min_hole_vertices : 6 # minimum number of vertices in a hole to return
+    min_triangles: 200 # minimum number of triangles needed to make a plane
+  fastga: # Parameters used for dominant plane normal estimation
+    level: 4 # refinement level of the gaussian accumulator
+    down_sample_fraction: 0.12 # only use X% of triangle normals from mesh for integration, lower the faster
+    find_peaks_kwargs: # peak detection arguments
+      threshold_abs: 100 # [0-255], minimum value of normalized histogram of S2 to be a peak
+      min_distance: 1 # 1 = 3X3 kernel for peak detector. I recommend to not change
+      exclude_border: false
+      indices: false # must return mask
+    cluster_kwargs: # Agglomerative hierarchal clustering
+      t: 0.10 # min distance in 3D space of peaks (surface normals on sphere) before merging 
+      criterion: 'distance'
+    average_filter: # A merge group must have at least x% of value in all of histogram, this doesn't have much meaning and will probably be deprecated
+      min_total_weight: 0.1
   polygon:
     frameskip: # criterions to skip polygon generation given input data
       depth_min_valid: 0.5 # minimum percentage needed from depth image pixels with valid data
-    pointcloud: # Settings for point cloud generation from depth map image
-      patch: # What portion of the depth image should be used to generate the point cloud
-        - 0.1 # Starting percentage down the y-axis
-        - 1.0  # Ending percentage down the y-axis
-        - 0.0 # Starting percentage on the x-axis
-        - 1.0  # Ending percentage on the x-axis
-      ds: # How should we downsample from the patch
-        - 3 # Sample every Y rows
-        - 3 # Sample every X cols
-    polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
-      alpha: 0.0 # must be set to 0.0 if using lmax
-      lmax: 0.05 # maximum distance between points in plane for spatial connection
-      zThresh: 0.03 # triangles with z-height less than this have normal filtering skipped. For sensor noise.
-      normThresh: 0.99 # triangles whose normal is greater than X degrees are filtered acos(tri_norm * [0,0,1])
-      normThreshMin: 0.96 # triangles must have a minimum amount of planarity. ignores zThresh
-      minHoleVertices : 6 # minimum number of vertices in a hole to return
-      minTriangles: 200 # minimum number of triangles needed to make a plane
-    ground_normal: # Settings used to estimate normal of ground plane in point cloud.
-                   # This is used to rotate the point cloud such that ground normal aligns with the z-axis
-      patch: # What portion of the depth image should be used to estimate normals. Will be downsampled.
-        - 0.75 # Starting percentage down the y-axis
-        - 1.0  # Ending percentage down the y-axis
-        - 0.10 # Starting percentage right of the x-axis
-        - 0.9  # Ending percentage right of the x-axis
-      ds: # How should we downsample from the patch. Note we will perform SVD on this patch
-        - 10 # Sample every Y rows
-        - 10 # Sample every X cols
-      buffer: 10 # Take average of the last $(buffer) normals calculated. Not implemented (WIP).
     postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
       filter: # obstacles must have these characteristics
         hole_area:

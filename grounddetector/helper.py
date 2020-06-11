@@ -491,11 +491,14 @@ def get_pix_coordinates(pts, proj_mat, w, h):
 def plot_opencv_polys(polygons, color_image, proj_mat, rot_mat, w, h, color=(0, 255, 0), thickness=2):
     for i, (poly, height) in enumerate(polygons):
         # Get 2D polygons and assign z component the height value of extracted plane
-        pts = np.array(poly.exterior.coords)[:,:2]  # NX2
-        pts = np.column_stack((pts, np.ones((pts.shape[0])) * height))  # NX3
-        # Transform flat plane coordinate system to original cordinate system of depth frame
-        pts = pts.transpose()  # 3XN
-        pts = np.linalg.inv(rot_mat) @ pts
+        if rot_mat is not None:
+            pts = np.array(poly.exterior.coords)[:,:2]  # NX2
+            pts = np.column_stack((pts, np.ones((pts.shape[0])) * height))  # NX3
+            # Transform flat plane coordinate system to original cordinate system of depth frame
+            pts = pts.transpose()  # 3XN
+            pts = np.linalg.inv(rot_mat) @ pts
+        else:
+            pts = np.transpose(np.array(poly.exterior.coords)[:,:3])  # NX3
 
         # np.savetxt(f"polygon_{i}_cameraframe.txt", pts.transpose())
         # Project coordinates to image space
