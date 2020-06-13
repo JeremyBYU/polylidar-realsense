@@ -19,81 +19,81 @@ from fastga.o3d_util import get_arrow, get_pc_all_peaks, get_arrow_normals
 import open3d as o3d
 
 
-def split_triangles(mesh):
-    """
-    Split the mesh in independent triangles    
-    """
-    triangles = np.asarray(mesh.triangles).copy()
-    vertices = np.asarray(mesh.vertices).copy()
+# def split_triangles(mesh):
+#     """
+#     Split the mesh in independent triangles    
+#     """
+#     triangles = np.asarray(mesh.triangles).copy()
+#     vertices = np.asarray(mesh.vertices).copy()
 
-    triangles_3 = np.zeros_like(triangles)
-    vertices_3 = np.zeros((len(triangles) * 3, 3), dtype=vertices.dtype)
+#     triangles_3 = np.zeros_like(triangles)
+#     vertices_3 = np.zeros((len(triangles) * 3, 3), dtype=vertices.dtype)
 
-    for index_triangle, t in enumerate(triangles):
-        index_vertex = index_triangle * 3
-        vertices_3[index_vertex] = vertices[t[0]]
-        vertices_3[index_vertex + 1] = vertices[t[1]]
-        vertices_3[index_vertex + 2] = vertices[t[2]]
+#     for index_triangle, t in enumerate(triangles):
+#         index_vertex = index_triangle * 3
+#         vertices_3[index_vertex] = vertices[t[0]]
+#         vertices_3[index_vertex + 1] = vertices[t[1]]
+#         vertices_3[index_vertex + 2] = vertices[t[2]]
 
-        triangles_3[index_triangle] = np.arange(index_vertex, index_vertex + 3)
+#         triangles_3[index_triangle] = np.arange(index_vertex, index_vertex + 3)
 
-    mesh_return = deepcopy(mesh)
-    mesh_return.triangles = o3d.utility.Vector3iVector(triangles_3)
-    mesh_return.vertices = o3d.utility.Vector3dVector(vertices_3)
-    mesh_return.triangle_normals = mesh.triangle_normals
-    mesh_return.paint_uniform_color([0.5, 0.5, 0.5])
-    return mesh_return
-
-
-def assign_some_vertex_colors(mesh, triangle_indices, triangle_colors, mask=None):
-    """Assigns vertex colors by given normal colors
-    NOTE: New mesh is returned
-
-    Arguments:
-        mesh {o3d:TriangleMesh} -- Mesh
-        normal_colors {ndarray} -- Normals Colors
-
-    Returns:
-        o3d:TriangleMesh -- New Mesh with painted colors
-    """
-    split_mesh = split_triangles(mesh)
-    vertex_colors = np.asarray(split_mesh.vertex_colors)
-    triangles = np.asarray(split_mesh.triangles)
-    if mask is not None:
-        triangles = triangles[mask, :]
-
-    if isinstance(triangle_indices, list):
-        for triangle_set, color in zip(triangle_indices, triangle_colors):
-            triangle_set = np.asarray(triangle_set)
-            for i in range(np.asarray(triangle_set).shape[0]):
-                # import ipdb; ipdb.set_trace()
-                t_idx = triangle_set[i]
-                p_idx = triangles[t_idx, :]
-                vertex_colors[p_idx] = color
-    else:
-        for i in range(triangle_indices.shape[0]):
-            # import ipdb; ipdb.set_trace()
-            t_idx = triangle_indices[i]
-            color = triangle_colors[i, :]
-            p_idx = triangles[t_idx, :]
-            vertex_colors[p_idx] = color
-    if not split_mesh.has_triangle_normals():
-        split_mesh.compute_triangle_normals()
-    split_mesh.compute_vertex_normals()
-
-    return split_mesh
+#     mesh_return = deepcopy(mesh)
+#     mesh_return.triangles = o3d.utility.Vector3iVector(triangles_3)
+#     mesh_return.vertices = o3d.utility.Vector3dVector(vertices_3)
+#     mesh_return.triangle_normals = mesh.triangle_normals
+#     mesh_return.paint_uniform_color([0.5, 0.5, 0.5])
+#     return mesh_return
 
 
-def paint_planes(o3d_mesh, planes):
-    # colors = np.arange(0, 0+ len(planes))
-    colors = [0, 3]
-    all_colors = plt.cm.get_cmap('tab10')(colors)[:, :3]
+# def assign_some_vertex_colors(mesh, triangle_indices, triangle_colors, mask=None):
+#     """Assigns vertex colors by given normal colors
+#     NOTE: New mesh is returned
 
-    # planes_list = [np.copy(plane) for plane in planes]
-    # planes_list = np.
+#     Arguments:
+#         mesh {o3d:TriangleMesh} -- Mesh
+#         normal_colors {ndarray} -- Normals Colors
 
-    new_mesh = assign_some_vertex_colors(o3d_mesh, planes, all_colors)
-    return new_mesh
+#     Returns:
+#         o3d:TriangleMesh -- New Mesh with painted colors
+#     """
+#     split_mesh = split_triangles(mesh)
+#     vertex_colors = np.asarray(split_mesh.vertex_colors)
+#     triangles = np.asarray(split_mesh.triangles)
+#     if mask is not None:
+#         triangles = triangles[mask, :]
+
+#     if isinstance(triangle_indices, list):
+#         for triangle_set, color in zip(triangle_indices, triangle_colors):
+#             triangle_set = np.asarray(triangle_set)
+#             for i in range(np.asarray(triangle_set).shape[0]):
+#                 # import ipdb; ipdb.set_trace()
+#                 t_idx = triangle_set[i]
+#                 p_idx = triangles[t_idx, :]
+#                 vertex_colors[p_idx] = color
+#     else:
+#         for i in range(triangle_indices.shape[0]):
+#             # import ipdb; ipdb.set_trace()
+#             t_idx = triangle_indices[i]
+#             color = triangle_colors[i, :]
+#             p_idx = triangles[t_idx, :]
+#             vertex_colors[p_idx] = color
+#     if not split_mesh.has_triangle_normals():
+#         split_mesh.compute_triangle_normals()
+#     split_mesh.compute_vertex_normals()
+
+#     return split_mesh
+
+
+# def paint_planes(o3d_mesh, planes):
+#     # colors = np.arange(0, 0+ len(planes))
+#     colors = [0, 3]
+#     all_colors = plt.cm.get_cmap('tab10')(colors)[:, :3]
+
+#     # planes_list = [np.copy(plane) for plane in planes]
+#     # planes_list = np.
+
+#     new_mesh = assign_some_vertex_colors(o3d_mesh, planes, all_colors)
+#     return new_mesh
 
 
 def down_sample_normals(triangle_normals, down_sample_fraction=0.12, min_samples=10000, flip_normals=False, **kwargs):

@@ -17,7 +17,7 @@
       magnitude: 2 # can be 2, 4, 8
     temporal:
       active: true
-      smooth_alpha: 0.4 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
+      smooth_alpha: 0.3 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
       smooth_delta: 60.0 # the filter threshold for edge classification and preserving with default value of 20 depth increments
       persistence_control: 2 # 0 = disabled , 1 = Valid in 8/8, 2 = Valid in 2/last 3
     spatial:
@@ -32,7 +32,7 @@
       loops_laplacian: 2
       _lambda: 1.0
       kernel_size: 3
-      loops_bilateral: 2
+      loops_bilateral: 3
       sigma_length: 0.1
       sigma_angle: 0.261
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
@@ -42,7 +42,7 @@
     norm_thresh: 0.96 # Not used, set to the same as norm_thresh_min. Will deprecate later.
     norm_thresh_min: 0.95 # triangles must have a minimum amount of planarity.
     min_hole_vertices : 6 # minimum number of vertices in a hole to return
-    min_triangles: 80 # minimum number of triangles needed to make a plane
+    min_triangles: 500 # minimum number of triangles needed to make a plane
   fastga: # Parameters used for dominant plane normal estimation
     level: 3 # refinement level of the gaussian accumulator
     down_sample_fraction: 0.12 # only use X% of triangle normals from mesh for integration, lower the faster
@@ -62,12 +62,12 @@
     postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
       filter: # obstacles must have these characteristics
         hole_area:
-          min: 0.025   # m^2
+          min: 0.05   # m^2
           max: 0.785 # m^2
         hole_vertices:
           min: 6
         plane_area:
-          min: .05 # m^2
+          min: .15 # m^2
       # These parameters correspond to Shapely polygon geometry operations
       positive_buffer: 0.005 # m, Positively expand polygon.  Fills in small holes
       negative_buffer: 0.03 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon

@@ -391,9 +391,9 @@ def capture(config, video=None):
                         # import ipdb; ipdb.set_trace()
 
                         o3d.visualization.draw_geometries([axis, o3d_mesh_painted, arrow_o3d, *all_lines])
-
-                # logging.info("Get Frames: %.2f; Check Valid Frame: %.2f; Polygon Extraction: %.2f, Polygon Filtering: %.2f, Visualization: %.2f",
-                #              (t0 - t00) * 1000, (t1 - t0) * 1000, (t2 - t1) * 1000, (t3 - t2) * 1000, (t4 - t3) * 1000)
+                # print(timings)
+                logging.info(f"Get Frames: %.2f; Check Valid Frame: %.2f; Laplacian: %.2f; Bilateral: %.2f; Mesh: %.2f; FastGA: %.2f; Plane/Poly: %.2f; Filtering: %.2f",
+                             (t0 - t00) * 1000, (t1 - t0) * 1000,  timings['t_laplacian'], timings['t_bilateral'], timings['t_mesh'], timings['t_fastga_total'], timings['t_polylidar_planepoly'], timings['t_polylidar_filter'])
             except Exception as e:
                 logging.exception("Error!")
 
