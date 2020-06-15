@@ -1,6 +1,14 @@
 ---
   name: Default Settings for D435 extracting multiple surfaces using Polylidar3D
   advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
+  playback: 
+    enabled: true
+    file: "data/test.bag"
+    repeat: false
+  save:
+    video: ""
+    timings: "data/results.csv" 
+
   show_images: true
   show_polygon: true
   color: # RGB Camera Settings

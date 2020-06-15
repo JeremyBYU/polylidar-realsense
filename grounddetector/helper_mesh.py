@@ -15,6 +15,78 @@ from polylidar import extract_tri_mesh_from_organized_point_cloud, MatrixDouble
 
 COLOR_PALETTE = list(map(colors.to_rgb, plt.rcParams['axes.prop_cycle'].by_key()['color']))
 
+
+# def vector_magnitude(vec):
+#     """
+#     Calculates a vector's magnitude.
+#     Args:
+#         - vec ():
+#     """
+#     magnitude = np.sqrt(np.sum(vec**2))
+#     return(magnitude)
+
+
+# def align_vector_to_another(a=np.array([0, 0, 1]), b=np.array([1, 0, 0])):
+#     """
+#     Aligns vector a to vector b with axis angle rotation
+#     """
+#     if np.array_equal(a, b):
+#         return None, None
+#     axis_ = np.cross(a, b)
+#     axis_ = axis_ / np.linalg.norm(axis_)
+#     angle = np.arccos(np.dot(a, b))
+
+#     return axis_, angle
+
+
+# def create_arrow(scale=1, cylinder_radius=None, **kwargs):
+#     """
+#     Create an arrow in for Open3D
+#     """
+#     cone_height = scale * 0.2
+#     cylinder_height = scale * 0.8
+#     cone_radius = cylinder_radius if cylinder_radius else scale / 10
+#     cylinder_radius = cylinder_radius if cylinder_radius else scale / 20
+#     mesh_frame = o3d.geometry.TriangleMesh.create_arrow(cone_radius=cone_radius,
+#                                                         cone_height=cone_height,
+#                                                         cylinder_radius=cylinder_radius,
+#                                                         cylinder_height=cylinder_height)
+#     return(mesh_frame)
+
+
+# def get_arrow(origin=[0, 0, 0], end=None, vec=None, **kwargs):
+#     """
+#     Creates an arrow from an origin point to an end point,
+#     or create an arrow from a vector vec starting from origin.
+#     Args:
+#         - end (): End point. [x,y,z]
+#         - vec (): Vector. [i,j,k]
+#     """
+#     # print(end)
+#     scale = 10
+#     beta = 0
+#     gamma = 0
+#     T = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+#     T[:3, -1] = origin
+#     if end is not None:
+#         vec = np.array(end) - np.array(origin)
+#     elif vec is not None:
+#         vec = np.array(vec)
+#     if end is not None or vec is not None:
+#         scale = vector_magnitude(vec)
+#         mesh = create_arrow(scale, **kwargs)
+#         axis, angle = align_vector_to_another(b=vec / scale)
+#         if axis is None:
+#             axis_a = axis
+#         else:
+#             axis_a = axis * angle
+#             rotation_3x3 = mesh.get_rotation_matrix_from_axis_angle(axis_a)
+#     # mesh.transform(T)
+#     if axis is not None:
+#         mesh = mesh.rotate(rotation_3x3, center=False)
+#     mesh.translate(origin)
+#     return(mesh)
+
 def create_open_3d_mesh_from_tri_mesh(tri_mesh):
     """Create an Open3D Mesh given a Polylidar TriMesh"""
     triangles = np.asarray(tri_mesh.triangles)
