@@ -156,6 +156,7 @@ def extract_all_dominant_plane_normals(tri_mesh, level=5, with_o3d=False, ga_=No
     triangle_normals = np.asarray(tri_mesh.triangle_normals)
     triangle_normals_ds = down_sample_normals(triangle_normals, **kwargs)
 
+    # np.savetxt('bad_normals.txt', triangle_normals_ds)
     triangle_normals_ds_mat = MatX3d(triangle_normals_ds)
     t1 = time.perf_counter()
     ga.integrate(triangle_normals_ds_mat)

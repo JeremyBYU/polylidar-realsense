@@ -4,6 +4,7 @@
 *.bag
 *.csv
 .vscode
+*.ini
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

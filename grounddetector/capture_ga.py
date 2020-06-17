@@ -88,6 +88,11 @@ def create_pipeline(config: dict):
     pipeline.start(rs_config)
     profile = pipeline.get_active_profile()
 
+    if config['playback']['enabled']:
+        dev = profile.get_device()
+        playback = dev.as_playback()
+        playback.set_real_time(False)
+
     # Processing blocks
     filters = []
     decimate = None
@@ -226,9 +231,8 @@ def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, *
                                                                        postprocess=config['polygon']['postprocess'])
     alg_timings.update(timings)
 
+    # return planes, obstacles, alg_timings, o3d_mesh
     return planes, obstacles, alg_timings
-    # return planes, obstacles, timings, mesh, o3d_mesh, o3d_mesh_painted, arrow_o3d, all_poly_lines
-    # return polygons, points_rot, rm
 
 
 def valid_frames(color_image, depth_image, depth_min_valid=0.5):
@@ -270,6 +274,7 @@ def capture(config, video=None):
 
     # Long lived objects. These are the object that hold all the algorithms for surface exraction.
     # They need to be long lived (objects) because they hold state (thread scheduler, image datastructures, etc.)
+    # import ipdb; ipdb.set_trace()
     ll_objects = dict()
     ll_objects['pl'] = Polylidar3D(**config['polylidar'])
     ll_objects['ga'] = GaussianAccumulatorS2(level=config['fastga']['level'])
@@ -281,6 +286,7 @@ def capture(config, video=None):
         out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 20, (frame_width, frame_height))
 
     all_records = []
+    counter = 0
     try:
         while True:
             t00 = time.time()
@@ -295,10 +301,13 @@ def capture(config, video=None):
                 logging.debug("Invalid Frames")
                 continue
             t1 = time.time()
+            counter += 1
+            # if counter < 340:
+            #     continue
 
             try:
                 if config['show_polygon']:
-                    # planes, obstacles, timings, mesh, o3d_mesh, o3d_mesh_painted, arrow_o3d, all_poly_lines = get_polygon(depth_image, config, ll_objects, **meta)
+                    # planes, obstacles, timings, o3d_mesh = get_polygon(depth_image, config, ll_objects, **meta)
                     planes, obstacles, timings = get_polygon(depth_image, config, ll_objects, **meta)
                     timings['t_get_frames'] = (t0 - t00) * 1000
                     timings['t_check_frames'] = (t1 - t0) * 1000
@@ -323,6 +332,11 @@ def capture(config, video=None):
                         cv2.imwrite(path.join(PICS_DIR, "{}_color.jpg".format(uid)), color_image_cv)
                         cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(uid)), images)
                     if res == ord('m'):
+                        # o3d.visualization.draw_geometries([o3d_mesh])
+                        plt.imshow(np.asarray(ll_objects['ico'].image_to_vertex_idx))
+                        plt.show()
+                        plt.imshow(np.asarray(ll_objects['ico'].mask))
+                        plt.show()
                         plt.imshow(np.asarray(ll_objects['ico'].image))
                         plt.show()
                         # all_lines = [line_mesh.cylinder_segments for line_mesh in all_poly_lines]
@@ -332,8 +346,9 @@ def capture(config, video=None):
                         # # import ipdb; ipdb.set_trace()
                         # o3d.visualization.draw_geometries([axis, o3d_mesh_painted, arrow_o3d, *all_lines])
                 # print(timings)
-                logging.info(f"Get Frames: %.2f; Check Valid Frame: %.2f; Laplacian: %.2f; Bilateral: %.2f; Mesh: %.2f; FastGA: %.2f; Plane/Poly: %.2f; Filtering: %.2f",
-                             timings['t_get_frames'], timings['t_check_frames'], timings['t_laplacian'], timings['t_bilateral'], timings['t_mesh'], timings['t_fastga_total'], timings['t_polylidar_planepoly'], timings['t_polylidar_filter'])
+                logging.info(f"Frame %d; Get Frames: %.2f; Check Valid Frame: %.2f; Laplacian: %.2f; Bilateral: %.2f; Mesh: %.2f; FastGA: %.2f; Plane/Poly: %.2f; Filtering: %.2f",
+                             counter, timings['t_get_frames'], timings['t_check_frames'], timings['t_laplacian'], timings['t_bilateral'], timings['t_mesh'], timings['t_fastga_total'],
+                             timings['t_polylidar_planepoly'], timings['t_polylidar_filter'])
             except Exception as e:
                 logging.exception("Error!")
     finally:
@@ -346,9 +361,6 @@ def capture(config, video=None):
     print(df.mean())
     if config['save'].get('timings') is not "":
         df.to_csv(config['save'].get('timings', 'data/timings.csv'))
-
-
-
 
 
 def main():
