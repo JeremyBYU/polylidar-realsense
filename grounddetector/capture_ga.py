@@ -13,6 +13,7 @@ import yaml
 import pyrealsense2 as rs
 import cv2
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
 import open3d as o3d
 import pandas as pd
 
@@ -177,7 +178,9 @@ def get_frames(pipeline, pc, process_modules, filters, config):
                                     [0, depth_intrinsics.fy, depth_intrinsics.ppy],
                                     [0, 0, 1]])
     # convert to numpy array
-    color_image = np.asanyarray(color_frame.get_data())
+    # dropped color frames will be reused, causing DOUBLE writes of polygons on the same
+    # image buffer. Create a copy so this doesnt occur
+    color_image = np.copy(np.asanyarray(color_frame.get_data()))
     depth_image = np.asanyarray(depth_frame.get_data())
 
     return color_image, depth_image, dict(h=h, w=w, intrinsics=d_intrinsics_matrix)
@@ -257,14 +260,29 @@ def valid_frames(color_image, depth_image, depth_min_valid=0.5):
     return pass_all
 
 
+def colorize_depth(depth_image, config, vmin=200, vmax=2500, bgr=True):
+    depth_image_cv = cv2.resize(depth_image, (config['color']['width'], config['color']['height']))
+    normalized_depth = Normalize(vmin=vmin, vmax=vmax, clip=True)(depth_image_cv)
+    depth_image_cv = (plt.cm.viridis(normalized_depth)[:,:, :3] * 255).astype(np.uint8)
+    if bgr:
+        depth_image_cv = cv2.cvtColor(depth_image_cv, cv2.COLOR_RGB2BGR)
+    return depth_image_cv
+
 def colorize_images_open_cv(color_image, depth_image, config):
     """Colorizes and resizes images"""
-
     color_image_cv = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
-    depth_image_cv = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.10), cv2.COLORMAP_HOT)
-    depth_image_cv = cv2.resize(depth_image_cv, (config['color']['width'], config['color']['height']))
+    depth_image_cv = colorize_depth(depth_image, config)
 
     return color_image_cv, depth_image_cv
+
+# def colorize_images_open_cv(color_image, depth_image, config):
+#     """Colorizes and resizes images"""
+
+#     color_image_cv = cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR)
+#     depth_image_cv = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.10), cv2.COLORMAP_HOT)
+#     depth_image_cv = cv2.resize(depth_image_cv, (config['color']['width'], config['color']['height']))
+
+#     return color_image_cv, depth_image_cv
 
 
 def capture(config, video=None):
@@ -302,7 +320,7 @@ def capture(config, video=None):
                 continue
             t1 = time.time()
             counter += 1
-            # if counter < 340:
+            # if counter < 1800:
             #     continue
 
             try:
@@ -339,6 +357,7 @@ def capture(config, video=None):
                         plt.show()
                         plt.imshow(np.asarray(ll_objects['ico'].image))
                         plt.show()
+                        import ipdb; ipdb.set_trace()
                         # all_lines = [line_mesh.cylinder_segments for line_mesh in all_poly_lines]
                         # flatten = itertools.chain.from_iterable
                         # all_lines = list(flatten(all_lines))

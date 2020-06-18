@@ -3,7 +3,8 @@
   advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
   playback: 
     enabled: false
-    file: "data/20200617_162944.bag"
+    file: "data/20200618_081754.bag"
+    # file: "data/20200617_162944.bag"
     repeat: false
   save:
     video: ""
@@ -12,12 +13,12 @@
   show_images: true
   show_polygon: true
   color: # RGB Camera Settings
-    width: 424
-    height: 240
+    width: 848 #424
+    height: 480 #240
     framerate: 30
   depth: # Depth Camera Settings
-    width: 424
-    height: 240
+    width: 848 #424
+    height: 480 #240
     framerate: 30
   filters: # Any realsense filters you wish to apply
     decimation:
@@ -25,26 +26,26 @@
       magnitude: 2 # can be 2, 4, 8
     temporal:
       active: true
-      smooth_alpha: 0.3 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
+      smooth_alpha: 0.20 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
       smooth_delta: 60.0 # the filter threshold for edge classification and preserving with default value of 20 depth increments
       persistence_control: 2 # 0 = disabled , 1 = Valid in 8/8, 2 = Valid in 2/last 3
     spatial:
       active: true
       smooth_alpha: 0.35 # The weight of the current pixel for smoothing is bounded within [25..100]%
       smooth_delta: 8.0 # The depth gradient below which the smoothing will occur as number of depth levels
-      magnitude: 3 # Number of iteration for filter
+      magnitude: 2 # Number of iteration for filter
       hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
   mesh:
-    stride: 2
+    stride: 4
     filter:
-      loops_laplacian: 2
-      _lambda: 1.0
-      kernel_size: 3
-      loops_bilateral: 3
-      sigma_length: 0.1
-      sigma_angle: 0.20
+      loops_laplacian: 3 # how many iterations
+      _lambda: 1.0 # weight factor for laplacian update
+      kernel_size: 3 # only changes for laplacian
+      loops_bilateral: 3 # how many iterations
+      sigma_length: 0.1 # std of distance between triangles centroids
+      sigma_angle: 0.30 # std of distance between triangles normals
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
-    alpha: 0.0 # must be set to 0.0 if using lmax
+    alpha: 0.15 # must be set to 0.0 if using lmax
     lmax: 0.05 # maximum distance between points in plane for spatial connection
     z_thresh: 0.0 # enforce point to plane distance constraints during region growing.
     norm_thresh: 0.96 # Not used, set to the same as norm_thresh_min. Will deprecate later.
@@ -70,14 +71,14 @@
     postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
       filter: # obstacles must have these characteristics
         hole_area:
-          min: 0.05   # m^2
+          min: 0.10   # m^2
           max: 0.785 # m^2
         hole_vertices:
           min: 6
         plane_area:
-          min: .05 # m^2
+          min: .10 # m^2
       # These parameters correspond to Shapely polygon geometry operations
       positive_buffer: 0.005 # m, Positively expand polygon.  Fills in small holes
-      negative_buffer: 0.01 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
+      negative_buffer: 0.02 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
       simplify: 0.02  # m, simplify edges of polygon
   
