@@ -171,6 +171,8 @@ def get_frames(pipeline, pc, process_modules, filters, config):
         depth_frame = f.process(depth_frame)
     # Disparity back to depth
     depth_frame = disparity_to_depth.process(depth_frame)
+
+
     # Grab new intrinsics (may be changed by decimation)
     depth_intrinsics = rs.video_stream_profile(depth_frame.profile).get_intrinsics()
     w, h = depth_intrinsics.width, depth_intrinsics.height
@@ -179,9 +181,14 @@ def get_frames(pipeline, pc, process_modules, filters, config):
                                     [0, 0, 1]])
     # convert to numpy array
     # dropped color frames will be reused, causing DOUBLE writes of polygons on the same
-    # image buffer. Create a copy so this doesnt occur
+    # image buffer. Create a copy so this doesn't occur
     color_image = np.copy(np.asanyarray(color_frame.get_data()))
     depth_image = np.asanyarray(depth_frame.get_data())
+
+    threshold = config['filters'].get('threshold')
+    if threshold is not None and threshold['active']:
+        mask = depth_image[:, :] > int(threshold['distance'] * 1000)
+        depth_image[mask] = 0
 
     return color_image, depth_image, dict(h=h, w=w, intrinsics=d_intrinsics_matrix)
 
@@ -301,26 +308,26 @@ def capture(config, video=None):
     if video:
         frame_width = config['depth']['width'] * 2
         frame_height = config['depth']['height']
-        out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 20, (frame_width, frame_height))
+        out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
     all_records = []
     counter = 0
     try:
         while True:
-            t00 = time.time()
+            t00 = time.perf_counter()
             try:
                 color_image, depth_image, meta = get_frames(pipeline, pc, process_modules, filters, config)
             except RuntimeError:
                 # This only gets thrown when in playback mode from a recoded file when frames "run out"
                 logging.info("Out of frames")
                 break
-            t0 = time.time()
+            t0 = time.perf_counter()
             if color_image is None or not valid_frames(color_image, depth_image, **config['polygon']['frameskip']):
                 logging.debug("Invalid Frames")
                 continue
-            t1 = time.time()
+            t1 = time.perf_counter()
             counter += 1
-            # if counter < 1800:
+            # if counter < 430:
             #     continue
 
             try:
@@ -364,6 +371,12 @@ def capture(config, video=None):
                         # arrow_o3d = arrow_o3d.translate([0, 0, 1.3])
                         # # import ipdb; ipdb.set_trace()
                         # o3d.visualization.draw_geometries([axis, o3d_mesh_painted, arrow_o3d, *all_lines])
+                    to_save_frames = config['save'].get('frames')
+                    if config['playback']['enabled'] and counter in to_save_frames:
+                        logging.info("Saving Picture: {}".format(counter))
+                        cv2.imwrite(path.join(PICS_DIR, "{}_color.jpg".format(counter)), color_image_cv)
+                        cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(counter)), images)
+
                 # print(timings)
                 logging.info(f"Frame %d; Get Frames: %.2f; Check Valid Frame: %.2f; Laplacian: %.2f; Bilateral: %.2f; Mesh: %.2f; FastGA: %.2f; Plane/Poly: %.2f; Filtering: %.2f",
                              counter, timings['t_get_frames'], timings['t_check_frames'], timings['t_laplacian'], timings['t_bilateral'], timings['t_mesh'], timings['t_fastga_total'],
