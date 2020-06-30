@@ -5,7 +5,7 @@ setup(
     packages=['surfacedetector'],
     scripts=[],
 
-    install_requires=['numpy', 'pyrealsense2', 'pyyaml', 'scipy>=1.4.0'],
+    install_requires=['numpy', 'pyrealsense2', 'pyyaml', 'scipy>=1.4.0', 'pandas', 'open3d'],
 
     # metadata to display on PyPI
     author="Jeremy Castagno",

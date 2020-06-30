@@ -1,35 +1,48 @@
-# Polylidar with Intel RealSense Example - Ground/Obstacle Detection
+# Polylidar3D with Intel RealSense RGBD Camera
 
-This repository contains code and examples for integrating [Polylidar](https://github.com/JeremyBYU/polylidarv2) with an Intel RealSense camera.  The example presented is for ground/obstacle detection with representation as polygons. To learn more about Polylidar and its use cases for concave polygons extraction see it's [repository](https://github.com/JeremyBYU/polylidar).
+This repository contains code and examples for integrating [Polylidar3D](https://github.com/JeremyBYU/polylidar) with an Intel RealSense camera.  The example presented is for flat surface/obstacle detection with representation as polygons. To learn more about Polylidar3D and its use cases for concave polygons extraction see it's [repository](https://github.com/JeremyBYU/polylidar).
 
-![Example ground and obstacle detection with Polylidar](assets/media/obstacles_walk_ver2.gif)
+![Example flat surface extraction with Polylidar3D](assets/media/obstacles_walk_ver3.gif)
 
 The main components of the code are as follows:
 
-1. Using `pyrealsense2` to interface with the a D435 sensor.
-2. Apply filtering to generated depth images (spatial,temporal, etc.).  
-3. Generate a point cloud from filtered depth image.
-4. Find ground normal and rotate point cloud to align its z-axis with ground normal.
-5. Use `polylidar` to extract flat surfaces and obstacles as polygons
-6. Perform polygon filtering and buffering.
-7. Project polygons onto image for display and verification
+1. Using `pyrealsense2` to interface with the a D4XX sensor.
+2. Apply filtering to generated depth images (spatial,temporal, etc.). 
+3. Use [Polylidar3D](https://github.com/JeremyBYU/polylidar) to extract Polygons.
+    1. Depth image to *organized* point cloud.
+    2. Laplacian and Bilateral mesh smoothing. Optional GPU acceleration. [OPF](https://github.com/JeremyBYU/OrganizedPointFilters)
+    3. Dominant Plane Normal Estimation [FastGA](https://github.com/JeremyBYU/FastGaussianAccumulator). 
+    4. Plane/Polygon Extraction
+4. Perform polygon filtering and buffering.
+5. Project polygons onto image for display and verification
 
-Please see disclaimers below before using Polylidar with an Intel RealSense camera for your application.
+Please see disclaimers below before using `Polylidar3D` with an Intel RealSense camera for your application.
 
 ## Installation
 
+Please begin with first installing a python virtual environments.
+
 1. Install [conda](https://conda.io/projects/conda/en/latest/) - [Why?](https://medium.freecodecamp.org/why-you-need-python-environments-and-how-to-manage-them-with-conda-85f155f4353c)
 2. `conda create --name realsense python=3.6 && source activate realsense` - Create new virtual python environment
-3. `git clone --recurse-submodules https://github.com/JeremyBYU/polylidar-realsense.git && cd polylidar-realsense`
-4. `conda install -c conda-forge opencv shapely` - These packages give the most issue for binary dependencies for Windows users, hence why conda should handle them.
-5. `cd thirdparty/polylidar && pip install -e . && cd ../..` - Install polylidar manually because it is not on PyPi.
-6. `pip install -e .` - Install any dependencies for this repository (groundetector).
+
+There are three main dependencies which must be installed. Please `git clone` each of these repositories. You will need CMake to build each of these repos. Please note each repo's installation section about building and *installing* `python` bindings. Please be sure that you have activated your newly created virtual environment when building these repositories (`realsense`).
+
+1. [Polylidar3D](https://github.com/JeremyBYU/polylidar)
+2. [OPF](https://github.com/JeremyBYU/OrganizedPointFilters)
+3. [FastGA](https://github.com/JeremyBYU/FastGaussianAccumulator)
+
+Once that is all done just install any dependencies needed in this repo.
+
+1. `conda install -c conda-forge opencv shapely` - These packages give the most issue for binary dependencies for Windows users, hence why conda should handle them.
+2. `pip install -e .` - Install any dependencies for this repository (`surfacedetector`).
+
 
 ## Running
 
-The demo code is in `capture.py` and be called as so `python surfacedetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `surfacedetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file. 
+The demo code is in `capture.py` and be called as so `python -m surfacedetector/capture.py`.  All parameters used to configure the module can be found in `surfacedetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter.
 
 ```txt
+(ppb) ➜  polylidar-realsense git:(polylidar3d) ✗ python -m surfacedetector.capture --help
 usage: capture.py [-h] [-c CONFIG] [-v VIDEO]
 
 Captures ground plane and obstacles as polygons
@@ -39,20 +52,23 @@ optional arguments:
   -c CONFIG, --config CONFIG
                         Configuration file
   -v VIDEO, --video VIDEO
-                        Video file path
+                        Video file save path
 ```
 
-### T265
+## Sample Files
 
-If you have a T265 that is rigidly mounted with your D4XX, we can skip the floor normal calculation and just rotate the point cloud into the world frame using T265 Pose data. Use the script `python surfacedetector/tracking.py` for this work.
+You can download two (2) [bag](https://github.com/IntelRealSense/librealsense/blob/master/doc/sample-data.md) files that were recorded inside my residence with a D435i. Playback can be enabled through the `default.yaml` file. The first bag file is of my basement, while the second bag file is of my main floor.  Please note that the lighting is controlled in these environments leading to less noise for an Intel RealSense Camera. When these camera's are used outside....lets just say the depth maps are "very poor". This in turn leads to degraded results for Polylidar3D as well. LiDAR always works better : ) .  
+
+Here are the bag files (each one is about 1 GB!): [basement bag file](https://drive.google.com/file/d/1q-6qP1zMuA7MklzGJPFFZeWAt2O5waQC/view?usp=sharing), [main floor bag file](https://drive.google.com/file/d/1NFGjEqpiGv-W_AddVe17FaLmkWiXv4Ik/view?usp=sharing)
+
+Here are the generated videos in their entirety: [basement video](https://drive.google.com/file/d/1nmJEqWAchZxdVYrKxWLh5OsbA0dk7WmF/view?usp=sharing), [main floor video](https://drive.google.com/file/d/1l4yuMLjyRt7Hzkp0V8bhcblg_bVHj4NW/view?usp=sharing)
 
 ## Disclaimers
 
-The Intel D435 is very noisy with dense point clouds. The only way to make it usable for Polylidar (as it is currently implemented) is to use heavy filtering, including temporal filtering. Also the points are downsampled in order to:
+The Intel D435 is very noisy with dense point clouds. The only way to make it usable for `Polylidar3D` (as it is currently implemented) is to use heavy filtering, including temporal filtering. Also the points are downsampled in order to:
 
 1. Increase runtime speed. Less points = faster polylidar performance.
 2. Create more gaps between points which increases triangle average size. The true planarity (normal) of a triangle is more apparent the larger the triangle is in relation to sensor noise.
 
 Imagine a ground triangle with 1cm edge lengths with a height noise of 1 cm. The noise dominates the triangle and makes the normal of the triangle not planar. Now image 5 cm edge lengths with same 1cm height noise. The noise makes less of a difference and it appears to be more flat.
 
-Note this repository uses a very simple method for determining the ground normal. It simply looks at the bottom portion of the depth image and does a best plane fit. In production, one should use RANSAC or other robust plane fitting algorithms for ground normal determination. Ground normal determination is not the focus of this repo.
