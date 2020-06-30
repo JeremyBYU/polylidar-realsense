@@ -14,7 +14,7 @@ from fastga import GaussianAccumulatorS2, MatX3d, IcoCharts
 from fastga.peak_and_cluster import find_peaks_from_ico_charts
 from fastga.o3d_util import get_arrow, get_pc_all_peaks, get_arrow_normals
 
-# from grounddetector.helper_mesh import create_open_3d_mesh
+# from surfacedetector.helper_mesh import create_open_3d_mesh
 
 import open3d as o3d
 

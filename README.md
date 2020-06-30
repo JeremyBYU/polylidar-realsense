@@ -27,7 +27,7 @@ Please see disclaimers below before using Polylidar with an Intel RealSense came
 
 ## Running
 
-The demo code is in `capture.py` and be called as so `python grounddetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `grounddetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file. 
+The demo code is in `capture.py` and be called as so `python surfacedetector/capture.py`.  All parameters used to configure the intel RealSense camera can be found in `surfacedetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter. Note that the image generated above used `tilted.yaml` configuration file. 
 
 ```txt
 usage: capture.py [-h] [-c CONFIG] [-v VIDEO]
@@ -44,7 +44,7 @@ optional arguments:
 
 ### T265
 
-If you have a T265 that is rigidly mounted with your D4XX, we can skip the floor normal calculation and just rotate the point cloud into the world frame using T265 Pose data. Use the script `python grounddetector/tracking.py` for this work.
+If you have a T265 that is rigidly mounted with your D4XX, we can skip the floor normal calculation and just rotate the point cloud into the world frame using T265 Pose data. Use the script `python surfacedetector/tracking.py` for this work.
 
 ## Disclaimers
 

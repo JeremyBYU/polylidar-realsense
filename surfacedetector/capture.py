@@ -4,7 +4,6 @@ import argparse
 from os import path
 import time
 import uuid
-import math
 import itertools
 
 
@@ -21,13 +20,13 @@ from polylidar import MatrixDouble, MatrixFloat, extract_point_cloud_from_float_
 from fastga import GaussianAccumulatorS2, IcoCharts
 
 from polylidar.polylidarutil.plane_filtering import filter_planes_and_holes
-from grounddetector.utility.helper import (plot_planes_and_obstacles, create_projection_matrix,
+from surfacedetector.utility.helper import (plot_planes_and_obstacles, create_projection_matrix,
                                    get_intrinsics, load_setting_file)
 
 
 
-from grounddetector.utility.helper_mesh import create_meshes_cuda, create_meshes_cuda_with_o3d, create_meshes
-from grounddetector.utility.helper_polylidar import extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh
+from surfacedetector.utility.helper_mesh import create_meshes_cuda, create_meshes_cuda_with_o3d, create_meshes
+from surfacedetector.utility.helper_polylidar import extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh
 
 logging.basicConfig(level=logging.INFO)
 

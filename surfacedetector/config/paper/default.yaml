@@ -1,6 +1,6 @@
 ---
   name: Default Settings for D435 extracting multiple surfaces using Polylidar3D
-  advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
+  advanced: "surfacedetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
   playback:           # this will play a bag file instead of connecting to a live sensor
     enabled: true     # Only activate playback if this is true
     # file: "data/20200618_081754.bag"

@@ -1,6 +1,6 @@
 ---
   name: Default Settings for D435. Tilted near ground (< 2 meters max distance)
-  advanced: "grounddetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
+  advanced: "surfacedetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
   show_images: true
   show_polygon: true
   mesh_creation: 'uniform' # 'delaunay' or 'uniform'
