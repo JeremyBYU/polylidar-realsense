@@ -43,9 +43,6 @@ IDENTITY = np.identity(3)
 IDENTITY_MAT = MatrixDouble(IDENTITY)
 
 
-axis = o3d.geometry.TriangleMesh.create_coordinate_frame()
-
-
 def create_pipeline(config: dict):
     """Sets up the pipeline to extract depth and rgb frames
 
@@ -124,8 +121,7 @@ def create_pipeline(config: dict):
             filters.append(my_filter)
 
     process_modules = (align, depth_to_disparity, disparity_to_depth, decimate)
-    # Create colorizer and point cloud
-    # colorizer = rs.colorizer(2)
+    # Create point cloud
     pc = rs.pointcloud()
 
     intrinsics = get_intrinsics(pipeline, rs.stream.color)

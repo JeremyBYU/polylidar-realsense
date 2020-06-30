@@ -85,3 +85,27 @@
       positive_buffer: 0.005 # m, Positively expand polygon.  Fills in small holes
       negative_buffer: 0.02 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
       simplify: 0.02  # m, simplify edges of polygon
+
+# Main Floor 1 Frames
+      # - 430
+      # - 536
+      # - 1340
+      # - 1540
+      # - 1620
+      # - 1880
+      # - 1960
+      # - 2038
+      # - 2568
+
+
+# Basement Floor
+      # - 360
+      # - 575
+      # - 645
+      # - 1025
+      # - 1075
+      # - 1324
+      # - 1842
+      # - 1995
+      # - 2074
+  

@@ -8,7 +8,7 @@ import matplotlib.colors as colors
 # from polylidar_plane_benchmark.utility.o3d_util import create_open_3d_mesh_from_tri_mesh
 
 import organizedpointfilters as opf
-import organizedpointfilters.cuda as opf_cuda
+
 from organizedpointfilters import Matrix3f, Matrix3fRef
 
 from polylidar import extract_tri_mesh_from_organized_point_cloud, MatrixDouble
@@ -180,7 +180,7 @@ def laplacian_opc_cuda(opc, loops=5, _lambda=0.5, kernel_size=3, **kwargs):
     Returns:
         ndarray -- Smoothed Point Cloud, MXNX3
     """
-
+    import organizedpointfilters.cuda as opf_cuda
     opc_float = (np.ascontiguousarray(opc[:, :, :3])).astype(np.float32)
 
     t1 = time.perf_counter()
@@ -269,7 +269,7 @@ def bilateral_opc_cuda(opc, loops=5, sigma_length=0.1, sigma_angle=0.261, **kwar
     Returns:
         ndarray -- MX3 Triangle Normal Array, Float 64
     """
-
+    import organizedpointfilters.cuda as opf_cuda
     normals_opc, centroids_opc = compute_normals_and_centroids_opc(opc, convert_f64=False)
     assert normals_opc.dtype == np.float32
     assert centroids_opc.dtype == np.float32
@@ -334,7 +334,7 @@ def laplacian_then_bilateral_opc(opc, loops_laplacian=5, _lambda=0.5, kernel_siz
     # total_points = int(opc_out.size / 3)
     # opc_out = opc_out.reshape((total_points, 3))
 
-    timings = dict(laplacian=(t2-t1)*1000, bilateral=(t3-t2)*1000)
+    timings = dict(t_laplacian=(t2-t1)*1000, t_bilateral=(t3-t2)*1000)
 
     return opc_out, opc_normals_out, timings
 
@@ -355,7 +355,7 @@ def laplacian_then_bilateral_opc_cuda(opc, loops_laplacian=5, _lambda=1.0, kerne
     Returns:
         tuple(ndarray, ndarray) -- Smoothed OPC MXNX3, Smoothed Normals M*NX3, the arrays are flattened
     """
-
+    import organizedpointfilters.cuda as opf_cuda
     opc_float = (np.ascontiguousarray(opc[:, :, :3])).astype(np.float32)
 
     t1 = time.perf_counter()
@@ -429,6 +429,29 @@ def pick_valid_normals(tri_map, opc_normals):
     mask = tri_map_np != np.iinfo(tri_map_np.dtype).max
     tri_norms = np.ascontiguousarray(opc_normals[mask,:])
     return tri_norms
+
+
+def create_meshes(opc, **kwargs):
+    """Creates a mesh from a noisy organized point cloud
+
+    Arguments:
+        opc {ndarray} -- Must be MXNX3
+
+    Keyword Arguments:
+        loops {int} -- How many loop iterations (default: {5})
+        _lambda {float} -- weighted iteration movement (default: {0.5})
+
+    Returns:
+        [tuple(mesh, o3d_mesh)] -- polylidar mesh and o3d mesh reperesentation
+    """
+    smooth_opc, opc_normals, timings = laplacian_then_bilateral_opc(opc, **kwargs)
+    tri_mesh, tri_map, time_elapsed_mesh = create_mesh_from_organized_point_cloud(smooth_opc, calc_normals=False)
+    tri_norms = pick_valid_normals(tri_map, opc_normals)
+    opc_normals_cp = MatrixDouble(tri_norms, copy=True) # copy here!!!!!
+    # plot_triangle_normals(np.asarray(tri_mesh.triangle_normals), opc_normals)
+    tri_mesh.set_triangle_normals(opc_normals_cp) # copy again here....sad
+    timings = dict(**timings, t_mesh=time_elapsed_mesh)
+    return tri_mesh, timings
 
 def create_meshes_cuda(opc, **kwargs):
     """Creates a mesh from a noisy organized point cloud
