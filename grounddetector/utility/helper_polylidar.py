@@ -194,14 +194,9 @@ def filter_and_create_polygons(points, polygons, rm=None, line_radius=0.005,
                                postprocess=dict(filter=dict(hole_area=dict(min=0.025, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.05)),
                                                 positive_buffer=0.00, negative_buffer=0.00, simplify=0.0)):
     " Apply polygon filtering algorithm, return Open3D Mesh Lines "
-    # config_pp = dict(filter=dict(hole_area=dict(min=0.00, max=100.0), hole_vertices=dict(min=6), plane_area=dict(min=0.0001)),
-    #                  positive_buffer=0.00, negative_buffer=0.0, simplify=0.00)
     t1 = time.perf_counter()
     planes, obstacles = filter_planes_and_holes(polygons, points, postprocess, rm=rm)
     t2 = time.perf_counter()
-    # logging.info("Plane Filtering Took (ms): %.2f", (t2 - t1) * 1000)
-    # all_poly_lines = create_lines(planes, obstacles, line_radius=line_radius)
-    # planes, obstacles, all_poly_lines, (t2 - t1) * 1000
     return planes, obstacles, (t2 - t1) * 1000
 
 
