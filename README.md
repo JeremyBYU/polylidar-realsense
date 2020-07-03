@@ -25,7 +25,7 @@ Please begin with first installing a python virtual environment.
 1. Install [conda](https://conda.io/projects/conda/en/latest/) - [Why?](https://medium.freecodecamp.org/why-you-need-python-environments-and-how-to-manage-them-with-conda-85f155f4353c)
 2. `conda create --name realsense python=3.6 && source activate realsense` - Create new virtual python environment
 
-There are three main dependencies which must be installed. Please `git clone` each of these repositories. You will need CMake to build each of these repositories. Please note each repo's installation section about building and *installing* `python` bindings. Please be sure that you have activated your newly created virtual environment when building these repositories (`realsense`).
+There are three main dependencies which must be installed. Please `git clone` each of these repositories in separate directories in your workspace. You will need CMake to build each of these repositories. Please note each repo's installation section about building and *installing* `python` bindings. Please be sure that you have activated your newly created virtual environment when building these repositories (`realsense`).
 
 1. [Polylidar3D](https://github.com/JeremyBYU/polylidar)
 2. [OPF](https://github.com/JeremyBYU/OrganizedPointFilters)
