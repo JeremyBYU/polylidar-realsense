@@ -39,7 +39,7 @@ Once that is all done just install any dependencies needed in this repo.
 
 ## Running
 
-The demo code is in `capture.py` and be called as so `python -m surfacedetector/capture.py`.  All parameters used to configure the module can be found in `surfacedetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter.
+The demo code is in `capture.py` and be called as so `python -m surfacedetector.capture`.  All parameters used to configure the module can be found in `surfacedetector/config/default.yaml`. You can specify alternate configuration profiles as a command line parameter.
 
 ```txt
 (ppb) ➜  polylidar-realsense git:(polylidar3d) ✗ python -m surfacedetector.capture --help
