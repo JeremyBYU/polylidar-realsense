@@ -84,7 +84,7 @@ Uses solid state lidar technology.
 
 1. Does *not* work in sunlight!
 2. Very precise (low noise) and accurate in indoor areas with no sunlight.
-3. Does not work well on matte black items
-4. Brand new sensor with a few bugs and issues
-5. Does not work well on angled surfaces. In other words it works best on flat surface directory in front of it.
+3. Does not work well on matte black items.
+4. Brand new sensor with a few bugs and issues.
+5. Does not work well on angled surfaces. In other words it works best on flat surface directly in front of it.
 
