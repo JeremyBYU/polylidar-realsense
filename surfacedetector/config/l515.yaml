@@ -1,0 +1,87 @@
+---
+  name: Default Settings for D435 extracting multiple surfaces using Polylidar3D
+  advanced: "" # JSON file path holding advanced settings
+  playback:           # this will play a bag file instead of connecting to a live sensor
+    enabled: false     # Only activate playback if this is true
+    file: "data/20200617_162944.bag"
+    # file: "data/20200618_081754.bag"
+    repeat: false     # repeat bag after its over
+  save:
+    video: ""                   # currently doesn't do anything
+    timings: "data/results.csv" # Where to save timing results
+    frames:                     # you can optionally add a list of integers frames which will be saved as pictures
+  show_images: true
+  show_polygon: true
+  color: # RGB Camera Settings
+    width: 1280 #424
+    height: 720 #240
+    framerate: 30
+  depth: # Depth Camera Settings
+    width: 640 #424
+    height: 480 #240
+    framerate: 30
+  filters: # Any realsense filters you wish to apply
+    decimation:
+      active: true
+      magnitude: 4 # can be 2, 4, 8
+    temporal:
+      active: false
+      smooth_alpha: 0.50 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
+      smooth_delta: 60.0 # the filter threshold for edge classification and preserving with default value of 20 depth increments
+      persistence_control: 2 # 0 = disabled , 1 = Valid in 8/8, 2 = Valid in 2/last 3
+    spatial:
+      active: false
+      smooth_alpha: 0.35 # The weight of the current pixel for smoothing is bounded within [25..100]%
+      smooth_delta: 8.0 # The depth gradient below which the smoothing will occur as number of depth levels
+      magnitude: 2 # Number of iteration for filter
+      hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
+    threshold:
+      active: true
+      distance: 4.5 # any pixel greater than x is removed
+  mesh:
+    use_cuda: True  # use GPU CUDA acceleration for mesh smoothing
+    stride: 1       # skip rows/columns
+    filter:
+      loops_laplacian: 3 # how many iterations
+      _lambda: 1.0 # weight factor for laplacian update
+      kernel_size: 3 # only changes for laplacian
+      loops_bilateral: 5 # how many iterations
+      sigma_length: 0.2 # std of distance between triangles centroids
+      sigma_angle: 0.25 # std of distance between triangles normals
+  polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
+    alpha: 0.15 # must be set to 0.0 if using lmax
+    lmax: 0.05 # maximum distance between points in plane for spatial connection
+    z_thresh: 0.15 # enforce point to plane distance constraints during region growing.
+    norm_thresh: 0.96 # Not used, set to the same as norm_thresh_min. Will deprecate later.
+    norm_thresh_min: 0.95 # triangles must have a minimum amount of planarity.
+    min_hole_vertices : 10 # minimum number of vertices in a hole to return
+    min_triangles: 500 # minimum number of triangles needed to make a plane
+  fastga: # Parameters used for dominant plane normal estimation
+    level: 4 # refinement level of the gaussian accumulator
+    down_sample_fraction: 0.12 # only use X% of triangle normals from mesh for integration, lower the faster
+    find_peaks_kwargs: # peak detection arguments
+      threshold_abs: 50 # [0-255], minimum value of normalized histogram of S2 to be a peak
+      min_distance: 1 # 1 = 3X3 kernel for peak detector. I recommend to not change
+      exclude_border: true
+      indices: false # must return mask
+    cluster_kwargs: # Agglomerative hierarchal clustering
+      t: 0.28 # min distance in 3D space of peaks (surface normals on sphere) before merging 
+      criterion: 'distance'
+    average_filter: # A merge group must have at least x% of value in all of histogram, this doesn't have much meaning and will probably be deprecated
+      min_total_weight: 0.1
+  polygon:
+    frameskip: # criterions to skip polygon generation given input data
+      depth_min_valid: 0.01 # minimum percentage needed from depth image pixels with valid data
+    postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
+      filter: # obstacles must have these characteristics
+        hole_area:
+          min: 0.05   # m^2
+          max: 0.785 # m^2
+        hole_vertices:
+          min: 6
+        plane_area:
+          min: .05 # m^2
+      # These parameters correspond to Shapely polygon geometry operations
+      positive_buffer: 0.000 # m, Positively expand polygon.  Fills in small holes
+      negative_buffer: 0.00 # m, Negative buffer to polygon. Expands holes and constricts outer hull of polygon
+      simplify: 0.00  # m, simplify edges of polygon

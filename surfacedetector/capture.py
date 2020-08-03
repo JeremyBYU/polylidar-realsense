@@ -88,6 +88,9 @@ def create_pipeline(config: dict):
     pipeline.start(rs_config)
     profile = pipeline.get_active_profile()
 
+    depth_sensor = profile.get_device().first_depth_sensor()
+    depth_scale = depth_sensor.get_depth_scale()
+
     if config['playback']['enabled']:
         dev = profile.get_device()
         playback = dev.as_playback()
@@ -129,6 +132,9 @@ def create_pipeline(config: dict):
 
     intrinsics = get_intrinsics(pipeline, rs.stream.color)
     proj_mat = create_projection_matrix(intrinsics)
+
+    sensor_meta = dict(depth_scale=depth_scale)
+    config['sensor_meta'] = sensor_meta
 
     return pipeline, pc, process_modules, filters, proj_mat
 
@@ -186,7 +192,7 @@ def get_frames(pipeline, pc, process_modules, filters, config):
 
     threshold = config['filters'].get('threshold')
     if threshold is not None and threshold['active']:
-        mask = depth_image[:, :] > int(threshold['distance'] * 1000)
+        mask = depth_image[:, :] > int(threshold['distance'] * (1 / config['sensor_meta']['depth_scale']))
         depth_image[mask] = 0
 
     return color_image, depth_image, dict(h=h, w=w, intrinsics=d_intrinsics_matrix)
@@ -215,12 +221,13 @@ def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, *
 
     # 1. Create OPC
     stride = config['mesh']['stride']  # point cloud generation parameters
-    depth_image = np.divide(depth_image, 1000.0, dtype=np.float32)
+    depth_scale = 1 / config['sensor_meta']['depth_scale']
+    depth_image = np.divide(depth_image, depth_scale, dtype=np.float32)
     points = extract_point_cloud_from_float_depth(MatrixFloat(
         depth_image), MatrixDouble(intrinsics), IDENTITY_MAT, stride=stride)
     new_shape = (int(depth_image.shape[0] / stride), int(depth_image.shape[1] / stride), 3)
     opc = np.asarray(points).reshape(new_shape)  # organized point cloud (will have NaNs!)
-
+    # print("OPC Shape: ", new_shape)
     # 2. Create Mesh and Smooth (all in one)
     # mesh, o3d_mesh, timings = create_meshes_cuda_with_o3d(opc, **config['mesh']['filter'])
     if config['mesh'].get('use_cuda'):
@@ -261,16 +268,16 @@ def valid_frames(color_image, depth_image, depth_min_valid=0.5):
     """
     count = np.count_nonzero(depth_image)
     pct = count / depth_image.size
-
     pass_depth = pct > depth_min_valid
 
     pass_all = pass_depth  # maybe others to come
     return pass_all
 
 
-def colorize_depth(depth_image, config, vmin=200, vmax=2500, bgr=True):
+def colorize_depth(depth_image, config, vmin=0.2, vmax=2.5, bgr=True):
+    depth_scale = config['sensor_meta']['depth_scale']
     depth_image_cv = cv2.resize(depth_image, (config['color']['width'], config['color']['height']))
-    normalized_depth = Normalize(vmin=vmin, vmax=vmax, clip=True)(depth_image_cv)
+    normalized_depth = Normalize(vmin=int(vmin / depth_scale), vmax=int(vmax / depth_scale), clip=True)(depth_image_cv)
     depth_image_cv = (plt.cm.viridis(normalized_depth)[:,:, :3] * 255).astype(np.uint8)
     if bgr:
         depth_image_cv = cv2.cvtColor(depth_image_cv, cv2.COLOR_RGB2BGR)
