@@ -305,8 +305,8 @@ def capture(config, video=None):
     ll_objects['ico'] = IcoCharts(level=config['fastga']['level'])
 
     if video:
-        frame_width = config['depth']['width'] * 2
-        frame_height = config['depth']['height']
+        frame_width = config['color']['width'] * 2
+        frame_height = config['color']['height']
         out_vid = cv2.VideoWriter(video, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30, (frame_width, frame_height))
 
     all_records = []

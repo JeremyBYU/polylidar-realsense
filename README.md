@@ -2,7 +2,13 @@
 
 This repository contains code and examples for integrating [Polylidar3D](https://github.com/JeremyBYU/polylidar) with an Intel RealSense camera.  The example presented is for flat surface/obstacle detection with representation as polygons. To learn more about Polylidar3D and its use cases for concave polygons extraction see it's [repository](https://github.com/JeremyBYU/polylidar).
 
-![Example flat surface extraction with Polylidar3D](assets/media/obstacles_walk_ver3.gif)
+Using RealSense D435i
+
+![Example flat surface extraction with Polylidar3D - D435i](assets/media/obstacles_walk_ver3.gif)
+
+Using RealSense L515 (New!)
+
+![Example flat surface extraction with Polylidar3D - L515](assets/media/basement_l515.gif)
 
 The main components of the code are as follows:
 
@@ -71,4 +77,14 @@ The Intel D435 is very noisy with dense point clouds. The only way to make it us
 2. Create more gaps between points which increases triangle average size. The true planarity (normal) of a triangle is more apparent the larger the triangle is in relation to sensor noise.
 
 Imagine a ground triangle with 1cm edge lengths with a height noise of 1 cm. The noise dominates the triangle and makes the normal of the triangle not planar. Now image 5 cm edge lengths with same 1cm height noise. The noise makes less of a difference and it appears to be more flat.
+
+## Notes on L515
+
+Uses solid state lidar technology.
+
+1. Does *not* work in sunlight!
+2. Very precise (low noise) and accurate in indoor areas with no sunlight.
+3. Does not work well on matte black items
+4. Brand new sensor with a few bugs and issues
+5. Does not work well on angled surfaces. In other words it works best on flat surface directory in front of it.
 
