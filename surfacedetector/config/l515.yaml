@@ -3,7 +3,7 @@
   advanced: "" # JSON file path holding advanced settings
   playback:           # this will play a bag file instead of connecting to a live sensor
     enabled: false     # Only activate playback if this is true
-    file: "data/20200803_125633.bag"
+    file: "data/20200804_083453.bag"
     # file: "data/20200618_081754.bag"
     repeat: false     # repeat bag after its over
   save:

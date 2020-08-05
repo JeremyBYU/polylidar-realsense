@@ -89,7 +89,11 @@ def create_pipeline(config: dict):
     profile = pipeline.get_active_profile()
 
     depth_sensor = profile.get_device().first_depth_sensor()
+    color_sensor = profile.get_device().first_color_sensor()
+
     depth_scale = depth_sensor.get_depth_scale()
+    # depth_sensor.set_option(rs.option.global_time_enabled, 1.0) 
+    # color_sensor.set_option(rs.option.global_time_enabled, 1.0)
 
     if config['playback']['enabled']:
         dev = profile.get_device()
@@ -165,6 +169,9 @@ def get_frames(pipeline, pc, process_modules, filters, config):
 
     depth_frame = frames.get_depth_frame()
     color_frame = frames.get_color_frame()
+
+    ts_domain = depth_frame.get_frame_timestamp_domain()
+    ts = depth_frame.get_timestamp()
 
     # Decimate, subsample image
     if decimate:
