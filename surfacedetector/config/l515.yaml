@@ -52,7 +52,7 @@
     alpha: 0.15 # must be set to 0.0 if using lmax
     lmax: 0.05 # maximum distance between points in plane for spatial connection
     z_thresh: 0.15 # enforce point to plane distance constraints during region growing.
-    norm_thresh: 0.96 # Not used, set to the same as norm_thresh_min. Will deprecate later.
+    norm_thresh: 0.95 # Not used, set to the same as norm_thresh_min. Will deprecate later.
     norm_thresh_min: 0.95 # triangles must have a minimum amount of planarity.
     min_hole_vertices : 10 # minimum number of vertices in a hole to return
     min_triangles: 500 # minimum number of triangles needed to make a plane

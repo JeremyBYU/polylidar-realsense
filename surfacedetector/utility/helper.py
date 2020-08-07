@@ -2,6 +2,7 @@ import sys
 import math
 import time
 import logging
+import json
 
 import numpy as np
 import cv2
@@ -19,6 +20,10 @@ DS5_product_ids = ["0AD1", "0AD2", "0AD3", "0AD4", "0AD5", "0AF6",
 ORANGE = [249, 115, 6]
 
 # rotate_points, align_vector_to_zaxis, get_downsampled_patch, calculate_plane_normal, filter_zero
+
+def save_dict_to_json(fname, my_dict):
+    with open(fname, 'w') as fp:
+        json.dump(my_dict, fp, indent=4)
 
 def find_device_that_supports_advanced_mode(ctx, devices):
     for dev in devices:

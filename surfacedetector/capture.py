@@ -21,8 +21,7 @@ from fastga import GaussianAccumulatorS2, IcoCharts
 
 from polylidar.polylidarutil.plane_filtering import filter_planes_and_holes
 from surfacedetector.utility.helper import (plot_planes_and_obstacles, create_projection_matrix,
-                                   get_intrinsics, load_setting_file)
-
+                                            get_intrinsics, load_setting_file, save_dict_to_json)
 
 
 from surfacedetector.utility.helper_mesh import create_meshes_cuda, create_meshes_cuda_with_o3d, create_meshes
@@ -92,7 +91,7 @@ def create_pipeline(config: dict):
     color_sensor = profile.get_device().first_color_sensor()
 
     depth_scale = depth_sensor.get_depth_scale()
-    # depth_sensor.set_option(rs.option.global_time_enabled, 1.0) 
+    # depth_sensor.set_option(rs.option.global_time_enabled, 1.0)
     # color_sensor.set_option(rs.option.global_time_enabled, 1.0)
 
     if config['playback']['enabled']:
@@ -256,6 +255,14 @@ def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, *
                                                                        postprocess=config['polygon']['postprocess'])
     alg_timings.update(timings)
 
+
+    # Uncomment to save raw data if desired
+    # np.save('L515_Depth.npy', depth_image)
+    # np.save('L515_OPC.npy', opc)
+    # save_dict_to_json('L515_meta.json', dict(depth_scale=depth_scale, intrinsics=intrinsics.tolist(),
+    #                                          mesh=config['mesh'], fastga=config['fastga'],
+    #                                          polylidar=config['polylidar'], postprocess=config['polygon']['postprocess']))
+
     # return planes, obstacles, alg_timings, o3d_mesh
     return planes, obstacles, alg_timings
 
@@ -285,10 +292,11 @@ def colorize_depth(depth_image, config, vmin=0.2, vmax=2.5, bgr=True):
     depth_scale = config['sensor_meta']['depth_scale']
     depth_image_cv = cv2.resize(depth_image, (config['color']['width'], config['color']['height']))
     normalized_depth = Normalize(vmin=int(vmin / depth_scale), vmax=int(vmax / depth_scale), clip=True)(depth_image_cv)
-    depth_image_cv = (plt.cm.viridis(normalized_depth)[:,:, :3] * 255).astype(np.uint8)
+    depth_image_cv = (plt.cm.viridis(normalized_depth)[:, :, :3] * 255).astype(np.uint8)
     if bgr:
         depth_image_cv = cv2.cvtColor(depth_image_cv, cv2.COLOR_RGB2BGR)
     return depth_image_cv
+
 
 def colorize_images_open_cv(color_image, depth_image, config):
     """Colorizes and resizes images"""
@@ -333,8 +341,10 @@ def capture(config, video=None):
                 continue
             t1 = time.perf_counter()
             counter += 1
-            # if counter < 430:
+            # if counter < 10:
             #     continue
+            # if counter >= 11:
+            #     sys.exit(0)
 
             try:
                 if config['show_polygon']:
@@ -370,7 +380,8 @@ def capture(config, video=None):
                         plt.show()
                         plt.imshow(np.asarray(ll_objects['ico'].image))
                         plt.show()
-                        import ipdb; ipdb.set_trace()
+                        import ipdb
+                        ipdb.set_trace()
                         # all_lines = [line_mesh.cylinder_segments for line_mesh in all_poly_lines]
                         # flatten = itertools.chain.from_iterable
                         # all_lines = list(flatten(all_lines))
