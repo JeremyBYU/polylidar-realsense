@@ -2,8 +2,8 @@
   name: Default Settings for D435 extracting multiple surfaces using Polylidar3D
   advanced: "" # JSON file path holding advanced settings
   playback:           # this will play a bag file instead of connecting to a live sensor
-    enabled: false     # Only activate playback if this is true
-    file: "data/20200804_083453.bag"
+    enabled: true     # Only activate playback if this is true
+    file: "data/20200806_190236.bag"
     # file: "data/20200618_081754.bag"
     repeat: false     # repeat bag after its over
   save:
@@ -25,7 +25,7 @@
       active: true
       magnitude: 4 # can be 2, 4, 8
     temporal:
-      active: false
+      active: true
       smooth_alpha: 0.50 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
       smooth_delta: 60.0 # the filter threshold for edge classification and preserving with default value of 20 depth increments
       persistence_control: 2 # 0 = disabled , 1 = Valid in 8/8, 2 = Valid in 2/last 3
@@ -39,15 +39,15 @@
       active: true
       distance: 4.5 # any pixel greater than x is removed
   mesh:
-    use_cuda: True  # use GPU CUDA acceleration for mesh smoothing
+    use_cuda: true  # use GPU CUDA acceleration for mesh smoothing
     stride: 1       # skip rows/columns
     filter:
-      loops_laplacian: 3 # how many iterations
+      loops_laplacian: 1 # how many iterations
       _lambda: 1.0 # weight factor for laplacian update
       kernel_size: 3 # only changes for laplacian
-      loops_bilateral: 5 # how many iterations
+      loops_bilateral: 3 # how many iterations
       sigma_length: 0.2 # std of distance between triangles centroids
-      sigma_angle: 0.25 # std of distance between triangles normals
+      sigma_angle: 0.15 # std of distance between triangles normals
   polylidar: # Parameters we send to polylidar. Determine plane and polygon extraction from point clouds.
     alpha: 0.15 # must be set to 0.0 if using lmax
     lmax: 0.05 # maximum distance between points in plane for spatial connection
