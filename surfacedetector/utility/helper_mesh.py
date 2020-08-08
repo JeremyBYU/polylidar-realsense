@@ -127,6 +127,8 @@ def create_open_3d_mesh(triangles, points, triangle_normals=None, color=COLOR_PA
         mesh_2d.triangle_normals = o3d.utility.Vector3dVector(triangle_normals_)
     else:
         mesh_2d.triangle_normals = o3d.utility.Vector3dVector(triangle_normals)
+
+    mesh_2d.vertices = o3d.utility.Vector3dVector(np.nan_to_num(np.asarray(mesh_2d.vertices), nan=0.0))
     mesh_2d.paint_uniform_color(color)
     mesh_2d.compute_vertex_normals()
     return mesh_2d
