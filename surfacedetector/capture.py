@@ -26,6 +26,7 @@ from surfacedetector.utility.helper import (plot_planes_and_obstacles, create_pr
 
 from surfacedetector.utility.helper_mesh import create_meshes_cuda, create_meshes_cuda_with_o3d, create_meshes
 from surfacedetector.utility.helper_polylidar import extract_all_dominant_plane_normals, extract_planes_and_polygons_from_mesh
+from surfacedetector.utility.helper_tracking import get_pose_matrix, cycle_pose_frames, callback_pose
 
 logging.basicConfig(level=logging.INFO)
 
@@ -51,16 +52,35 @@ def create_pipeline(config: dict):
         config {dict} -- A dictionary mapping for configuration. see default.yaml
 
     Returns:
-        tuple -- pipeline, pointcloud, decimate, filters(list), colorizer (not used)
+        tuple -- pipeline, process modules, filters, t265 device (optional)
     """
-    # Create pipeline and config
+    # Create pipeline and config for D4XX,L5XX
     pipeline = rs.pipeline()
     rs_config = rs.config()
+
+    # IF t265 is enabled, need to handle seperately
+    t265_dev = None
+    t265_sensor = None
+    t265_pipeline = rs.pipeline()
+    t265_config = rs.config()
 
     if config['playback']['enabled']:
         # Load recorded bag file
         rs.config.enable_device_from_file(
             rs_config, config['playback']['file'], config['playback'].get('repeat', False))
+
+        # This code is only activated if the user points to a T265 Recorded Bag File
+        if config['tracking']['enabled']:
+            rs.config.enable_device_from_file(
+                t265_config, config['tracking']['playback']['file'], config['playback'].get('repeat', False))
+
+            t265_config.enable_stream(rs.stream.pose)
+            t265_pipeline.start(t265_config)
+            profile_temp = t265_pipeline.get_active_profile()
+            t265_dev = profile_temp.get_device()
+            t265_playback = t265_dev.as_playback()
+            t265_playback.set_real_time(False)
+
     else:
         # Ensure device is connected
         ctx = rs.context()
@@ -72,6 +92,32 @@ def create_pipeline(config: dict):
         if config['advanced']:
             logging.info("Attempting to enter advanced mode and upload JSON settings file")
             load_setting_file(ctx, devices, config['advanced'])
+
+        # Cycle through connected devices and print them
+        for dev in devices:
+            dev_name = dev.get_info(rs.camera_info.name)
+            print("Found {}".format(dev_name))
+            if "Intel RealSense D4" in dev_name:
+                pass
+            elif "Intel RealSense T265" in dev_name:
+                t265_dev = dev
+
+        if config['tracking']['enabled']:
+            if len(devices) != 2:
+                logging.error("Need 2 connected Intel Realsense Devices!")
+                sys.exit(1)
+            if t265_dev is None:
+                logging.error("Need Intel Realsense T265 Device!")
+                sys.exit(1)
+
+            if t265_dev:
+                # Unable to open as a pipeline, must use sensors
+                t265_sensor = t265_dev.query_sensors()[0]
+                profiles = t265_sensor.get_stream_profiles()
+                pose_profile = [profile for profile in profiles if profile.stream_name() == 'Pose'][0]
+                t265_sensor.open(pose_profile)
+                t265_sensor.start(callback_pose)
+                logging.info("Started streaming Pose")
 
     rs_config.enable_stream(
         rs.stream.depth, config['depth']['width'],
@@ -129,9 +175,6 @@ def create_pipeline(config: dict):
             filters.append(my_filter)
 
     process_modules = (align, depth_to_disparity, disparity_to_depth, decimate)
-    # Create colorizer and point cloud
-    # colorizer = rs.colorizer(2)
-    pc = rs.pointcloud()
 
     intrinsics = get_intrinsics(pipeline, rs.stream.color)
     proj_mat = create_projection_matrix(intrinsics)
@@ -139,15 +182,18 @@ def create_pipeline(config: dict):
     sensor_meta = dict(depth_scale=depth_scale)
     config['sensor_meta'] = sensor_meta
 
-    return pipeline, pc, process_modules, filters, proj_mat
+    # Note that sensor must be saved so that it is not garbage collected
+    t265_device = dict(pipeline=t265_pipeline, sensor=t265_sensor)
+
+    return pipeline, process_modules, filters, proj_mat, t265_device
 
 
-def get_frames(pipeline, pc, process_modules, filters, config):
+def get_frames(pipeline, t265_pipeline, process_modules, filters, config):
     """Extracts frames from intel real sense pipline
     Applies filters and extracts point cloud
     Arguments:
         pipeline {rs::pipeline} -- RealSense Pipeline
-        pc {rs::pointcloud} -- A class that can turn a depth frame into a point cloud (numpy array)
+        t265_pipeline {rs::pipeline} -- Optional T265 Pipeline, can be None
         process_modules {tuple} -- align, depth_to_disparity, disparity_to_depth, decimate
         filters {list[rs::filters]} -- List of filters to apply
 
@@ -155,7 +201,11 @@ def get_frames(pipeline, pc, process_modules, filters, config):
         (rgb_image, depth_image, ndarray, meta) -- RGB Image, Depth Image (colorized), numpy points cloud, meta information
     """
     if config['playback']['enabled']:
-        frames = pipeline.wait_for_frames(timeout_ms=100)
+        frames = pipeline.wait_for_frames(timeout_ms=30)
+        ts_depth = frames.get_timestamp()
+        if t265_pipeline is not None:
+            ts_t265 = cycle_pose_frames(t265_pipeline, ts_depth)
+
     else:
         success, frames = pipeline.try_wait_for_frames(timeout_ms=5)
         if not success:
@@ -183,7 +233,6 @@ def get_frames(pipeline, pc, process_modules, filters, config):
     # Disparity back to depth
     depth_frame = disparity_to_depth.process(depth_frame)
 
-
     # Grab new intrinsics (may be changed by decimation)
     depth_intrinsics = rs.video_stream_profile(depth_frame.profile).get_intrinsics()
     w, h = depth_intrinsics.width, depth_intrinsics.height
@@ -195,13 +244,16 @@ def get_frames(pipeline, pc, process_modules, filters, config):
     # image buffer. Create a copy so this doesn't occur
     color_image = np.copy(np.asanyarray(color_frame.get_data()))
     depth_image = np.asanyarray(depth_frame.get_data())
+    depth_ts = depth_frame.get_timestamp()
 
     threshold = config['filters'].get('threshold')
     if threshold is not None and threshold['active']:
         mask = depth_image[:, :] > int(threshold['distance'] * (1 / config['sensor_meta']['depth_scale']))
         depth_image[mask] = 0
 
-    return color_image, depth_image, dict(h=h, w=w, intrinsics=d_intrinsics_matrix)
+    meta = dict(h=h, w=w, intrinsics=d_intrinsics_matrix, ts=depth_ts)
+
+    return color_image, depth_image, meta
 
 
 def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, **kwargs):
@@ -255,7 +307,6 @@ def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, *
                                                                        postprocess=config['polygon']['postprocess'])
     alg_timings.update(timings)
 
-
     # Uncomment to save raw data if desired
     # np.save('L515_Depth.npy', depth_image)
     # np.save('L515_OPC.npy', opc)
@@ -308,12 +359,12 @@ def colorize_images_open_cv(color_image, depth_image, config):
 
 def capture(config, video=None):
     # Configure streams
-    pipeline, pc, process_modules, filters, proj_mat = create_pipeline(config)
+    pipeline, process_modules, filters, proj_mat, t265_device = create_pipeline(config)
+    t265_pipeline = t265_device['pipeline']
     logging.info("Pipeline Created")
 
     # Long lived objects. These are the object that hold all the algorithms for surface exraction.
     # They need to be long lived (objects) because they hold state (thread scheduler, image datastructures, etc.)
-    # import ipdb; ipdb.set_trace()
     ll_objects = dict()
     ll_objects['pl'] = Polylidar3D(**config['polylidar'])
     ll_objects['ga'] = GaussianAccumulatorS2(level=config['fastga']['level'])
@@ -330,7 +381,7 @@ def capture(config, video=None):
         while True:
             t00 = time.perf_counter()
             try:
-                color_image, depth_image, meta = get_frames(pipeline, pc, process_modules, filters, config)
+                color_image, depth_image, meta = get_frames(pipeline, t265_pipeline, process_modules, filters, config)
             except RuntimeError:
                 # This only gets thrown when in playback mode from a recoded file when frames "run out"
                 logging.info("Out of frames")
@@ -343,10 +394,13 @@ def capture(config, video=None):
             counter += 1
             # if counter < 10:
             #     continue
-            # if counter >= 11:
-            #     sys.exit(0)
 
             try:
+                # Get 6DOF Pose at appropriate timestamp
+                if config['tracking']['enabled']:
+                    euler_t265 = get_pose_matrix(meta['ts'])
+                    logging.info('euler_t265: %r', euler_t265)
+
                 if config['show_polygon']:
                     # planes, obstacles, timings, o3d_mesh = get_polygon(depth_image, config, ll_objects, **meta)
                     planes, obstacles, timings = get_polygon(depth_image, config, ll_objects, **meta)
@@ -373,21 +427,7 @@ def capture(config, video=None):
                         cv2.imwrite(path.join(PICS_DIR, "{}_color.jpg".format(uid)), color_image_cv)
                         cv2.imwrite(path.join(PICS_DIR, "{}_stack.jpg".format(uid)), images)
                     if res == ord('m'):
-                        # o3d.visualization.draw_geometries([o3d_mesh])
-                        plt.imshow(np.asarray(ll_objects['ico'].image_to_vertex_idx))
-                        plt.show()
-                        plt.imshow(np.asarray(ll_objects['ico'].mask))
-                        plt.show()
-                        plt.imshow(np.asarray(ll_objects['ico'].image))
-                        plt.show()
-                        import ipdb
-                        ipdb.set_trace()
-                        # all_lines = [line_mesh.cylinder_segments for line_mesh in all_poly_lines]
-                        # flatten = itertools.chain.from_iterable
-                        # all_lines = list(flatten(all_lines))
-                        # arrow_o3d = arrow_o3d.translate([0, 0, 1.3])
-                        # # import ipdb; ipdb.set_trace()
-                        # o3d.visualization.draw_geometries([axis, o3d_mesh_painted, arrow_o3d, *all_lines])
+                        pass
                     to_save_frames = config['save'].get('frames')
                     if config['playback']['enabled'] and to_save_frames is not None and counter in to_save_frames:
                         logging.info("Saving Picture: {}".format(counter))
@@ -419,11 +459,10 @@ def main():
     with open(args.config) as file:
         try:
             config = yaml.safe_load(file)
+            # Run capture loop
+            capture(config, args.video)
         except yaml.YAMLError as exc:
             logging.exception("Error parsing yaml")
-
-    # Run capture loop
-    capture(config, args.video)
 
 
 if __name__ == "__main__":

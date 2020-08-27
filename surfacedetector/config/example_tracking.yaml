@@ -2,9 +2,8 @@
   name: Default Settings for D435 extracting multiple surfaces using Polylidar3D
   advanced: "surfacedetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
   playback:           # this will play a bag file instead of connecting to a live sensor
-    enabled: false     # Only activate playback if this is true
-    file: "data/20200617_162944.bag"
-    # file: "data/20200618_081754.bag"
+    enabled: true     # Only activate playback if this is true
+    file: "data/test/20200827_141337.bag"
     repeat: false     # repeat bag after its over
   save:
     video: ""                   # currently doesn't do anything
@@ -21,7 +20,7 @@
     height: 240 #240
     framerate: 30
   tracking: # T265 Camera Setting (Optional)
-    enabled:  false # Leave as false if you don't want to stream T265 in parallel
+    enabled:  true # Leave as false if you don't want to stream T265 in parallel
     playback: # If desire playback with tracking then point to the bag file for the T265
               # Note that RealSense viewer cant record two devices into one bag file.
               # Hence why you need to point to a secondary bag file.
