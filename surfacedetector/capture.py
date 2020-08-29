@@ -101,6 +101,8 @@ def create_pipeline(config: dict):
                 pass
             elif "Intel RealSense T265" in dev_name:
                 t265_dev = dev
+            elif "Intel RealSense L515" in dev_name:
+                pass
 
         if config['tracking']['enabled']:
             if len(devices) != 2:
@@ -181,7 +183,7 @@ def create_pipeline(config: dict):
 
     sensor_meta = dict(depth_scale=depth_scale)
     config['sensor_meta'] = sensor_meta
-
+    
     # Note that sensor must be saved so that it is not garbage collected
     t265_device = dict(pipeline=t265_pipeline, sensor=t265_sensor)
 
