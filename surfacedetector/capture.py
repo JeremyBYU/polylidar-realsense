@@ -93,34 +93,33 @@ def create_pipeline(config: dict):
             logging.info("Attempting to enter advanced mode and upload JSON settings file")
             load_setting_file(ctx, devices, config['advanced'])
 
+        # Cycle through connected devices and print them
+        for dev in devices:
+            dev_name = dev.get_info(rs.camera_info.name)
+            print("Found {}".format(dev_name))
+            if "Intel RealSense D4" in dev_name:
+                pass
+            elif "Intel RealSense T265" in dev_name:
+                t265_dev = dev
+            elif "Intel RealSense L515" in dev_name:
+                pass
+
         if config['tracking']['enabled']:
-            # Cycle through connected devices and print them
-            for dev in devices:
-                dev_name = dev.get_info(rs.camera_info.name)
-                print("Found {}".format(dev_name))
-                if "Intel RealSense D4" in dev_name:
-                    pass
-                elif "Intel RealSense T265" in dev_name:
-                    t265_dev = dev
-                elif "Intel RealSense L515" in dev_name:
-                    pass
+            if len(devices) != 2:
+                logging.error("Need 2 connected Intel Realsense Devices!")
+                sys.exit(1)
+            if t265_dev is None:
+                logging.error("Need Intel Realsense T265 Device!")
+                sys.exit(1)
 
-            if config['tracking']['enabled']:
-                if len(devices) != 2:
-                    logging.error("Need 2 connected Intel Realsense Devices!")
-                    sys.exit(1)
-                if t265_dev is None:
-                    logging.error("Need Intel Realsense T265 Device!")
-                    sys.exit(1)
-
-                if t265_dev:
-                    # Unable to open as a pipeline, must use sensors
-                    t265_sensor = t265_dev.query_sensors()[0]
-                    profiles = t265_sensor.get_stream_profiles()
-                    pose_profile = [profile for profile in profiles if profile.stream_name() == 'Pose'][0]
-                    t265_sensor.open(pose_profile)
-                    t265_sensor.start(callback_pose)
-                    logging.info("Started streaming Pose")
+            if t265_dev:
+                # Unable to open as a pipeline, must use sensors
+                t265_sensor = t265_dev.query_sensors()[0]
+                profiles = t265_sensor.get_stream_profiles()
+                pose_profile = [profile for profile in profiles if profile.stream_name() == 'Pose'][0]
+                t265_sensor.open(pose_profile)
+                t265_sensor.start(callback_pose)
+                logging.info("Started streaming Pose")
 
     rs_config.enable_stream(
         rs.stream.depth, config['depth']['width'],
