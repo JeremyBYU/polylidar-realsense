@@ -3,7 +3,7 @@
   advanced: "" # JSON file path holding advanced settings
   playback:           # this will play a bag file instead of connecting to a live sensor
     enabled: true     # Only activate playback if this is true
-    file: "data/20200829_161012.bag"
+    file: "data/20200831_085435.bag"
     # file: "data/20200806_190236.bag"
     # file: "data/20200618_081754.bag"
     repeat: false     # repeat bag after its over
@@ -14,8 +14,8 @@
   show_images: true
   show_polygon: true
   color: # RGB Camera Settings
-    width: 1280 #424
-    height: 720 #240
+    width: 640 #424
+    height: 480 #240
     framerate: 30
   depth: # Depth Camera Settings
     width: 640 #424
@@ -32,8 +32,8 @@
       active: true
       magnitude: 4 # can be 2, 4, 8
     temporal:
-      active: false
-      smooth_alpha: 0.80 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
+      active: true
+      smooth_alpha: 0.60 # the weight with default value 0.4, between 1 and 0 -- 1 means 100% weight from the current pixel
       smooth_delta: 60.0 # the filter threshold for edge classification and preserving with default value of 20 depth increments
       persistence_control: 2 # 0 = disabled , 1 = Valid in 8/8, 2 = Valid in 2/last 3
     spatial:
@@ -67,7 +67,7 @@
     level: 4 # refinement level of the gaussian accumulator
     down_sample_fraction: 0.12 # only use X% of triangle normals from mesh for integration, lower the faster
     find_peaks_kwargs: # peak detection arguments
-      threshold_abs: 50 # [0-255], minimum value of normalized histogram of S2 to be a peak
+      threshold_abs: 30 # [0-255], minimum value of normalized histogram of S2 to be a peak
       min_distance: 1 # 1 = 3X3 kernel for peak detector. I recommend to not change
       exclude_border: true
       indices: false # must return mask
@@ -82,7 +82,7 @@
     postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
       filter: # obstacles must have these characteristics
         hole_area:
-          min: 0.05   # m^2
+          min: 0.025   # m^2
           max: 0.785 # m^2
         hole_vertices:
           min: 6
