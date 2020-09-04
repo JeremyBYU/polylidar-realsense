@@ -1,9 +1,9 @@
 ---
-  name: Default Settings for D435 extracting multiple surfaces using Polylidar3D
+  name: Default Settings for D415 extracting multiple surfaces using Polylidar3D
   advanced: "surfacedetector/config/json/high_accuracy.json" # JSON file path holding advanced settings
   playback:           # this will play a bag file instead of connecting to a live sensor
-    enabled: false     # Only activate playback if this is true
-    file: "data/20200617_162944.bag"
+    enabled: true     # Only activate playback if this is true
+    file: "data/curbd415.bag"
     # file: "data/20200618_081754.bag"
     repeat: false     # repeat bag after its over
   save:
@@ -25,7 +25,7 @@
     playback: # If desire playback with tracking then point to the bag file for the T265
               # Note that RealSense viewer cant record two devices into one bag file.
               # Hence why you need to point to a secondary bag file.
-      file: "data/test/20200827_141341.bag"
+      file: "data/curbd415tracking.bag"
   filters: # Any realsense filters you wish to apply
     decimation:
       active: true
@@ -42,7 +42,7 @@
       magnitude: 2 # Number of iteration for filter
       hole_fill: 1 # 0-disabled, 1=2 pixel radius, 3=4 pixel, 4=8 pixel, 5=16 pixel, 6=unlimited
     threshold:
-      active: true,
+      active: true
       distance: 2.5 # any pixel greater than x is removed
   mesh:
     use_cuda: true  # use GPU CUDA acceleration for mesh smoothing
@@ -77,7 +77,7 @@
       min_total_weight: 0.1
   polygon:
     frameskip: # criterions to skip polygon generation given input data
-      depth_min_valid: 0.4 # minimum percentage needed from depth image pixels with valid data
+      depth_min_valid: 0.1 # minimum percentage needed from depth image pixels with valid data
     postprocess: # post processing of polygons returned from polylidar for ground/obstacle identification
       filter: # obstacles must have these characteristics
         hole_area:
