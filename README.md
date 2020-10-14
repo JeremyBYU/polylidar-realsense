@@ -69,6 +69,10 @@ Here are the bag files (each one is about 1 GB!): [basement bag file](https://dr
 
 Here are the generated videos in their entirety: [basement video](https://drive.google.com/file/d/1nmJEqWAchZxdVYrKxWLh5OsbA0dk7WmF/view?usp=sharing), [main floor video](https://drive.google.com/file/d/1l4yuMLjyRt7Hzkp0V8bhcblg_bVHj4NW/view?usp=sharing)
 
+## Helpful Notes
+
+Here is an issue that discussed some ways to help improve polygon extraciton: [Issue](https://github.com/JeremyBYU/polylidar-realsense/issues/4)
+
 ## Disclaimers
 
 The Intel D435 is very noisy with dense point clouds. The only way to make it usable for `Polylidar3D` (as it is currently implemented) is to use heavy filtering, including temporal filtering. Also the points are downsampled in order to:
