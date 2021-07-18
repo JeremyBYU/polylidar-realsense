@@ -17,7 +17,7 @@ import open3d as o3d
 import pandas as pd
 
 from polylidar import MatrixDouble, MatrixFloat, extract_point_cloud_from_float_depth, Polylidar3D
-from fastga import GaussianAccumulatorS2, IcoCharts
+from fastgac import GaussianAccumulatorS2Beta, IcoCharts
 
 from polylidar.polylidarutil.plane_filtering import filter_planes_and_holes
 from surfacedetector.utility.helper import (plot_planes_and_obstacles, create_projection_matrix,
@@ -297,7 +297,7 @@ def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, *
     alg_timings.update(timings)
 
     # 3. Estimate Dominate Plane Normals
-    fga = config['fastga']
+    fga = config['fastgac']
     avg_peaks, _, _, _, timings = extract_all_dominant_plane_normals(
         mesh, ga_=ll_objects['ga'], ico_chart_=ll_objects['ico'], **fga)
     alg_timings.update(timings)
@@ -313,7 +313,7 @@ def get_polygon(depth_image: np.ndarray, config, ll_objects, h, w, intrinsics, *
     # np.save('L515_Depth.npy', depth_image)
     # np.save('L515_OPC.npy', opc)
     # save_dict_to_json('L515_meta.json', dict(depth_scale=depth_scale, intrinsics=intrinsics.tolist(),
-    #                                          mesh=config['mesh'], fastga=config['fastga'],
+    #                                          mesh=config['mesh'], fastgac=config['fastgac'],
     #                                          polylidar=config['polylidar'], postprocess=config['polygon']['postprocess']))
 
     # return planes, obstacles, alg_timings, o3d_mesh
@@ -369,8 +369,8 @@ def capture(config, video=None):
     # They need to be long lived (objects) because they hold state (thread scheduler, image datastructures, etc.)
     ll_objects = dict()
     ll_objects['pl'] = Polylidar3D(**config['polylidar'])
-    ll_objects['ga'] = GaussianAccumulatorS2(level=config['fastga']['level'])
-    ll_objects['ico'] = IcoCharts(level=config['fastga']['level'])
+    ll_objects['ga'] = GaussianAccumulatorS2Beta(level=config['fastgac']['level'])
+    ll_objects['ico'] = IcoCharts(level=config['fastgac']['level'])
 
     if video:
         frame_width = config['color']['width'] * 2
@@ -449,7 +449,7 @@ def capture(config, video=None):
 
     df = pd.DataFrame.from_records(all_records)
     print(df.mean())
-    if config['save'].get('timings') is not "":
+    if config['save'].get('timings') != "":
         df.to_csv(config['save'].get('timings', 'data/timings.csv'))
 
 
