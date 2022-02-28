@@ -45,7 +45,7 @@
       active: true,
       distance: 2.5 # any pixel greater than x is removed
   mesh:
-    use_cuda: true  # use GPU CUDA acceleration for mesh smoothing
+    use_cuda: false  # use GPU CUDA acceleration for mesh smoothing
     stride: 1       # skip rows/columns
     filter:
       loops_laplacian: 3 # how many iterations
